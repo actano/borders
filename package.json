@@ -1,0 +1,27 @@
+{
+  "name": "borders",
+  "version": "1.0.0",
+  "description": "Simple framework for abstraction of system borders",
+  "author": "Actano GmbH (https://rplan.com/)",
+  "license": "MIT",
+  "main": "index.js",
+  "scripts": {
+    "prepublish": "babel src --out-dir lib",
+    "test": "mocha"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-plugin-add-module-exports": "^0.2.1",
+    "babel-plugin-transform-async-generator-functions": "^6.24.1",
+    "babel-preset-env": "^1.4.0",
+    "babel-register": "^6.24.1"
+    "chai": "^3.5.0",
+    "eslint": "^3.15.0",
+    "eslint-config-actano": "^6.1.0",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-jsx-a11y": "^4.0.0",
+    "eslint-plugin-react": "^6.9.0",
+    "mocha": "^3.3.0",
+    "sinon": "^2.2.0"
+  }
+}

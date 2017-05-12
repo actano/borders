@@ -2,7 +2,7 @@ import sinon from 'sinon'
 import { expect } from 'chai'
 import Context from '../src/context'
 
-describe('data-access-shared/context', () => {
+describe('borders/context', () => {
   it('should return result of generator', async () => {
     const result = {}
     const context = new Context()

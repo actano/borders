@@ -13,8 +13,10 @@
     "lib"
   ],
   "scripts": {
-    "prepublish": "babel src --out-dir lib",
-    "test": "mocha"
+    "prepublish": "npm run clean && npm run lint && babel src --out-dir lib && npm test",
+    "test": "mocha",
+    "lint": "eslint src test",
+    "clean": "rm -rf lib"
   },
   "devDependencies": {
     "babel-cli": "^6.24.1",

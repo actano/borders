@@ -32,5 +32,8 @@
     "eslint-plugin-react": "^6.9.0",
     "mocha": "^3.3.0",
     "sinon": "^2.2.0"
+  },
+  "dependencies": {
+    "bluebird": "^3.5.0"
   }
 }

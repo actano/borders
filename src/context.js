@@ -1,5 +1,6 @@
 import assert from 'assert'
-import { isFunction, isString, isPromise, isCommand } from './utils'
+import pMap from 'p-map'
+import { isFunction, isString, isPromise, isCommand, isGenerator, generatorForSingleValue } from './utils'
 
 export default class Context {
   constructor() {
@@ -37,6 +38,9 @@ export default class Context {
           }
         } else if (isPromise(value)) {
           nextValue = await value // eslint-disable-line no-await-in-loop
+        } else if (Array.isArray(value)) {
+          // eslint-disable-next-line no-await-in-loop
+          nextValue = await pMap(value, this._fork.bind(this))
         } else {
           throw new Error(`Neither promise nor action was yielded: ${value}`)
         }
@@ -50,5 +54,13 @@ export default class Context {
       }
     }
     return value
+  }
+
+  async _fork(instructions) {
+    if (isGenerator(instructions)) {
+      return this.execute(instructions)
+    }
+
+    return this.execute(generatorForSingleValue(instructions))
   }
 }

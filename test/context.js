@@ -47,6 +47,47 @@ describe('borders/context', () => {
     }())
   })
 
+  it('should resolve array of promises before passing back', async () => {
+    const result1 = {}
+    const result2 = {}
+    const result3 = {}
+    const context = new Context()
+    const backend = {
+      test() {
+        return Promise.all([
+          Promise.resolve(result1),
+          Promise.resolve(result2),
+          Promise.resolve(result3),
+        ])
+      },
+    }
+    context.use(backend)
+    await context.execute(function* test() {
+      const received = yield { type: 'test' }
+      expect(received[0]).to.eq(result1)
+      expect(received[1]).to.eq(result2)
+      expect(received[2]).to.eq(result3)
+    }())
+  })
+
+  it('should resolve yielded array of promises and pass them back', async () => {
+    const result1 = {}
+    const result2 = {}
+    const result3 = {}
+    const context = new Context()
+    context.use({ })
+    await context.execute(function* test() {
+      const received = yield [
+        Promise.resolve(result1),
+        Promise.resolve(result2),
+        Promise.resolve(result3),
+      ]
+      expect(received[0]).to.eq(result1)
+      expect(received[1]).to.eq(result2)
+      expect(received[2]).to.eq(result3)
+    }())
+  })
+
   it('should not allow overriding of backend commands', () => {
     const context = new Context()
     const backend = { test() { } }

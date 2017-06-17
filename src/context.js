@@ -1,5 +1,7 @@
 import assert from 'assert'
-import { isFunction, isString, isPromise, isCommand } from './utils'
+import Promise from 'bluebird'
+
+import { isFunction, isString, isPromise, isPromiseArray, isCommand } from './utils'
 
 export default class Context {
   constructor() {
@@ -37,6 +39,8 @@ export default class Context {
           }
         } else if (isPromise(value)) {
           nextValue = await value // eslint-disable-line no-await-in-loop
+        } else if (isPromiseArray(value)) {
+          nextValue = await Promise.all(value) // eslint-disable-line no-await-in-loop
         } else {
           throw new Error(`Neither promise nor action was yielded: ${value}`)
         }

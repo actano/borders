@@ -23,8 +23,8 @@ export default class Context {
     return this._commands[type](payload)
   }
 
-  async execute(iterator) {
-    let v = iterator.next()
+  async execute(generator) {
+    let v = generator.next()
     if (isPromise(v)) v = await v
     let { done, value } = v
     while (!done) {
@@ -40,11 +40,11 @@ export default class Context {
         } else {
           throw new Error(`Neither promise nor action was yielded: ${value}`)
         }
-        v = iterator.next(nextValue)
+        v = generator.next(nextValue)
         if (isPromise(v)) v = await v; // eslint-disable-line no-await-in-loop
         ({ done, value } = v)
       } catch (e) {
-        v = iterator.throw(e)
+        v = generator.throw(e)
         if (isPromise(v)) v = await v; // eslint-disable-line no-await-in-loop
         ({ done, value } = v)
       }

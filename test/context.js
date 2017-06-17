@@ -41,7 +41,6 @@ describe('borders/context', () => {
   it('should resolve yielded promises and pass them back', async () => {
     const result = {}
     const context = new Context()
-    context.use({ })
     await context.execute(function* test() {
       const received = yield Promise.resolve(result)
       expect(received).to.eq(result)

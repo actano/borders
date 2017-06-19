@@ -1,17 +1,21 @@
 language: node_js
 node_js:
-  - "8"
-  - "6"
-cache:
-  directories:
-    - "node_modules"
+- '8'
+- '6'
+cache: yarn
+env:
+  global:
+    secure: RFUh5CQ6BEvRRc+gMUIsa7Tjjv5gUGVg4r1dKL9eOIhuDbZsU6S3XijBCXc42l+z7XR4jHVdkUHdnGWcFKtnqqB5Te7i3kAZCnuJ5/A6vMrGGEyPobHVkWpEPbe00wUGS3rtkKyXXzvA/yw/5NuG5zttdUOR2XQmS1M8D6V4q1Z+thu/8cCQh/4wWzV7tll/jTv6Kc2XQw+C8q2SRpYGHmC6wWiWxA21PwFdyvh2l3g36bdsrql2wBxTAiaiFKJ8CwoUmW5xFA2mCj/5dfTR2yTJoWl+HMdu8Uj8p4z0SSzgf6U+hreQoTyk0H6ygBNRaNiyvtI1ehlXNxT3t1ps6FNitHarStXf5YiNzWpYkOJ3aydT7HnF6/LDdfYtskUkCX0uiep24xHHrp8X2gawJtunMvVbtXtACKPQTYeLFB+PYpEYq++iKu/GsRBO6t3o4aQj41b1hX5LAj9BKkzP0puP+yJoA0kW9A7x8ZpOIi8/U15vPP/xLJHNTgZf5tTYJyChTgx7J5LZh0bjIICZKVkCbIEdrbG2NT2WiC6YM8SdasCkDR8W3ywCkBdhmj56hPQiAYCGh2chwSkLqGyuDD7OZguuXaoV+kw5/JfSJzrBqHGxqTDDdS+ThSpfY51jyXVrGQpB10qG+eaUPrWMKFJLoxzbkTUmahElQ7P/jKk=
+before_install: yarn global add greenkeeper-lockfile@1
+before_script: greenkeeper-lockfile-update
 script:
-  - npm run ci
+- npm run ci
+after_script: greenkeeper-lockfile-upload
 deploy:
   provider: npm
   email: marcus.mennemeier@actano.de
   api_key:
-    secure: "dpwF3yaD67cOPQ8x0/1rWcGDMRjeBEFqYkfH+SuLdo8Kr1YqAjp0vBhCZ8OPN7WZjQHTW2sBtGA2R+GXDvjY+E5GCZyD/QQ3LE1hTjiBGR24PLl9oirku1P3laF7SQ+9KPlixhTwVKe2or3zJA+eLta9SncyTH6lzBCO4V8GQ4u83srXmW3GaWontsmjkQ+3N+XBtLXEoOBxihv7LApyEA8fRohN431Q0Lr9MLwd7QSqezUo6HzssczgU6Mr9zHaU5D3wp4Tr5lC+WhCR+0P1upKrNE/qx3/0KMPDSUZoeZzbuwIdUcMSIJdj0YEexVHUtjVTRbnhJrPOMRBLNvsclIYgTfraWs3oF1G3/eQx9YjhhI8+j522GLdIhOm8z7o0HDojXN+UmWwK2q1QzXsk5e4qQWdiqfHQqziy/xnrry67HJbul20TT5w9sEzwfIR9ZYH+AJsMvCycIPgtosDZa+AV6DWplV9IGki/hNs0A7Puh6CoifvM2v1EtAuQBBmRb5CH1CFoSzznAn1QbMgE1P/nL6HiSvkn/KCf+TfRSdK71+dWGBciVpHFwMBbbSx+wdJSa5STl5py+C4o98ibOHRf21EW5dc9c7qVWm1pMkaYNeklsk/1vMlZJNvEyFat4uqHRkclevwmp7cmkuhXAxkRPTephGTF6JXYn1KMEw="
+    secure: dpwF3yaD67cOPQ8x0/1rWcGDMRjeBEFqYkfH+SuLdo8Kr1YqAjp0vBhCZ8OPN7WZjQHTW2sBtGA2R+GXDvjY+E5GCZyD/QQ3LE1hTjiBGR24PLl9oirku1P3laF7SQ+9KPlixhTwVKe2or3zJA+eLta9SncyTH6lzBCO4V8GQ4u83srXmW3GaWontsmjkQ+3N+XBtLXEoOBxihv7LApyEA8fRohN431Q0Lr9MLwd7QSqezUo6HzssczgU6Mr9zHaU5D3wp4Tr5lC+WhCR+0P1upKrNE/qx3/0KMPDSUZoeZzbuwIdUcMSIJdj0YEexVHUtjVTRbnhJrPOMRBLNvsclIYgTfraWs3oF1G3/eQx9YjhhI8+j522GLdIhOm8z7o0HDojXN+UmWwK2q1QzXsk5e4qQWdiqfHQqziy/xnrry67HJbul20TT5w9sEzwfIR9ZYH+AJsMvCycIPgtosDZa+AV6DWplV9IGki/hNs0A7Puh6CoifvM2v1EtAuQBBmRb5CH1CFoSzznAn1QbMgE1P/nL6HiSvkn/KCf+TfRSdK71+dWGBciVpHFwMBbbSx+wdJSa5STl5py+C4o98ibOHRf21EW5dc9c7qVWm1pMkaYNeklsk/1vMlZJNvEyFat4uqHRkclevwmp7cmkuhXAxkRPTephGTF6JXYn1KMEw=
   on:
     tags: true
     repo: actano/borders

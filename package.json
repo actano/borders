@@ -13,7 +13,8 @@
     "lib"
   ],
   "scripts": {
-    "prepublish": "npm run clean && npm run lint && babel src --out-dir lib && npm test",
+    "prepublishOnly": "npm run clean && npm run ci && babel src --out-dir lib",
+    "ci": "npm run lint && npm test",
     "test": "mocha",
     "lint": "eslint src test",
     "clean": "rm -rf lib"

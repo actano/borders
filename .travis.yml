@@ -1,12 +1,12 @@
 language: node_js
 node_js:
-  - "6"
   - "8"
+  - "6"
 cache:
   directories:
     - "node_modules"
 script:
-  - npm run prepublish
+  - npm run ci
 deploy:
   provider: npm
   email: marcus.mennemeier@actano.de

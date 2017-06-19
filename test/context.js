@@ -1,7 +1,11 @@
 import sinon from 'sinon'
-import { expect } from 'chai'
+import chai from 'chai'
+import chaiIterator from 'chai-iterator'
 import waitFor from 'p-wait-for'
 import Context from '../src/context'
+
+chai.use(chaiIterator)
+const { expect } = chai
 
 describe('borders/context', () => {
   it('should return result of generator', async () => {
@@ -56,6 +60,16 @@ describe('borders/context', () => {
   })
 
   describe('executing multiple commands at once', () => {
+    function createIterableOf(items) {
+      const iterable = {}
+      iterable[Symbol.iterator] = function* iterate() {
+        for (const item of items) {
+          yield item
+        }
+      }
+      return iterable
+    }
+
     it('should run multiple commands and return their results', async () => {
       const context = new Context()
       const backend = {
@@ -65,11 +79,11 @@ describe('borders/context', () => {
       context.use(backend)
 
       await context.execute(function* test() {
-        const result = yield [
+        const result = yield createIterableOf([
           { type: 'command1' },
           { type: 'command2' },
-        ]
-        expect(result).to.deep.equal([101, 102])
+        ])
+        expect(result).to.iterate.over([101, 102])
       }())
     })
 
@@ -92,11 +106,11 @@ describe('borders/context', () => {
       }
 
       await context.execute(function* test() {
-        const result = yield [
+        const result = yield createIterableOf([
           generator1(),
           generator2(),
-        ]
-        expect(result).to.deep.equal([91, 82])
+        ])
+        expect(result).to.iterate.over([91, 82])
       }())
     })
 
@@ -119,12 +133,12 @@ describe('borders/context', () => {
       context.use(backend)
 
       await context.execute(function* test() {
-        const result = yield [
+        const result = yield createIterableOf([
           { type: 'command1' },
           { type: 'command2' },
-        ]
+        ])
 
-        expect(result).to.deep.equal([101, 102])
+        expect(result).to.iterate.over([101, 102])
       }())
     })
   })

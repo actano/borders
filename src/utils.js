@@ -5,3 +5,16 @@ export const isString = value => typeof value === 'string'
 export const isPromise = value => !!value && isFunction(value.then)
 
 export const isCommand = value => !!value && isString(value.type)
+
+export const isGenerator = value =>
+  !!value && isFunction(value.next) && isFunction(value.throw) && isFunction(value.return)
+
+export const isIterable = value => !!value && isFunction(value[Symbol.iterator])
+
+export const generatorForSingleValue = (value) => {
+  function* generateSingleValue() {
+    return yield value
+  }
+
+  return generateSingleValue()
+}

@@ -28,10 +28,8 @@
     "chai": "^3.5.0",
     "chai-iterator": "^1.1.4",
     "eslint": "^3.19.0",
-    "eslint-config-actano": "^6.1.0",
+    "eslint-config-actano-base": "^2.0.0",
     "eslint-plugin-import": "^2.2.0",
-    "eslint-plugin-jsx-a11y": "^4.0.0",
-    "eslint-plugin-react": "^6.9.0",
     "mocha": "^3.3.0",
     "p-wait-for": "^1.0.0",
     "sinon": "^2.2.0"

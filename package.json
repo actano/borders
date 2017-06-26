@@ -27,7 +27,7 @@
     "babel-register": "^6.24.1",
     "chai": "^3.5.0",
     "chai-iterator": "^1.1.4",
-    "eslint": "^3.19.0",
+    "eslint": "^4.1.1",
     "eslint-config-actano-base": "^2.0.0",
     "eslint-plugin-import": "^2.2.0",
     "mocha": "^3.3.0",

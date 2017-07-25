@@ -1,11 +1,30 @@
 import sinon from 'sinon'
-import chai from 'chai'
-import chaiIterator from 'chai-iterator'
+import { expect } from 'chai'
 import waitFor from 'p-wait-for'
 import Context from '../src/context'
 
-chai.use(chaiIterator)
-const { expect } = chai
+function expectIterable(iterable) {
+  expect(typeof iterable[Symbol.iterator]).to.equal('function')
+
+  return {
+    toIterateOver(expectedValues) {
+      const errorMessage = `expected ${iterable} to iterate over ${expectedValues}`
+      const actualIterator = iterable[Symbol.iterator]()
+      const expectedIterator = expectedValues[Symbol.iterator]()
+
+      let actualState = actualIterator.next()
+      let expectedState = expectedIterator.next()
+
+      while (!actualState.done) {
+        expect(actualState.value).to.equal(expectedState.value, errorMessage)
+        actualState = actualIterator.next()
+        expectedState = expectedIterator.next()
+      }
+
+      expect(expectedState.done).to.equal(true, errorMessage)
+    },
+  }
+}
 
 describe('borders/context', () => {
   it('should return result of generator', async () => {
@@ -83,7 +102,8 @@ describe('borders/context', () => {
           { type: 'command1' },
           { type: 'command2' },
         ])
-        expect(result).to.iterate.over([101, 102])
+        expectIterable(result)
+          .toIterateOver([101, 102])
       }())
     })
 
@@ -110,7 +130,8 @@ describe('borders/context', () => {
           generator1(),
           generator2(),
         ])
-        expect(result).to.iterate.over([91, 82])
+        expectIterable(result)
+          .toIterateOver([91, 82])
       }())
     })
 
@@ -138,7 +159,8 @@ describe('borders/context', () => {
           { type: 'command2' },
         ])
 
-        expect(result).to.iterate.over([101, 102])
+        expectIterable(result)
+          .toIterateOver([101, 102])
       }())
     })
   })

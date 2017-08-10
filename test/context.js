@@ -2,6 +2,7 @@ import sinon from 'sinon'
 import { expect } from 'chai'
 import waitFor from 'p-wait-for'
 import Context from '../src/context'
+import { StackFrame } from '../src/stack-frame'
 
 function expectIterable(iterable) {
   expect(typeof iterable[Symbol.iterator]).to.equal('function')
@@ -76,6 +77,60 @@ describe('borders/context', () => {
     const backend = { test() { } }
     context.use(backend)
     expect(() => context.use(backend)).to.throw(Error)
+  })
+
+  context('when backend throws error while executing a command', () => {
+    let backendError
+    let backend
+
+    beforeEach(() => {
+      backendError = new Error('Backend Error')
+      backend = {
+        test() {
+          throw backendError
+        },
+      }
+    })
+
+    it('should throw the error in the generator', async () => {
+      let thrownError
+      const context = new Context()
+
+      context.use(backend)
+
+      await context.execute(function* test() {
+        try {
+          yield { type: 'test' }
+        } catch (e) {
+          thrownError = e
+        }
+      }())
+
+      expect(thrownError).to.equal(backendError)
+    })
+
+    context('when command contains a stack frame', () => {
+      it('should append the stack frame of the command to the error', async () => {
+        let thrownError
+        const stackFrame = new StackFrame()
+        const originalStack = backendError.stack
+        const context = new Context()
+
+        context.use(backend)
+
+        await context.execute(function* test() {
+          try {
+            yield { type: 'test', stackFrame }
+          } catch (e) {
+            thrownError = e
+          }
+        }())
+
+        expect(thrownError.stack).to.equal(
+          `${originalStack}\nFrom previous event:\n${stackFrame.stack}`,
+        )
+      })
+    })
   })
 
   describe('executing multiple commands at once', () => {

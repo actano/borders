@@ -32,8 +32,10 @@ export default class Context {
     let { done, value } = v
     while (!done) {
       let nextValue
+      let stackFrame
       try {
         if (isCommand(value)) {
+          stackFrame = value.stackFrame
           nextValue = this.executeCommand(value)
           if (isPromise(nextValue)) {
             nextValue = await nextValue // eslint-disable-line no-await-in-loop
@@ -50,6 +52,9 @@ export default class Context {
         if (isPromise(v)) v = await v; // eslint-disable-line no-await-in-loop
         ({ done, value } = v)
       } catch (e) {
+        if (stackFrame) {
+          stackFrame.attachStack(e)
+        }
         v = generator.throw(e)
         if (isPromise(v)) v = await v; // eslint-disable-line no-await-in-loop
         ({ done, value } = v)

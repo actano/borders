@@ -10,7 +10,8 @@
     "url": "https://github.com/actano/borders.git"
   },
   "files": [
-    "lib"
+    "lib",
+    "command-with-stackframe.js"
   ],
   "scripts": {
     "prepublishOnly": "npm run clean && npm run ci && babel src --out-dir lib",

@@ -19,4 +19,4 @@ deploy:
   on:
     tags: true
     repo: actano/borders
-    node: '6'
+    node: '8'

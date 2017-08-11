@@ -126,9 +126,11 @@ describe('borders/context', () => {
           }
         }())
 
-        expect(thrownError.stack).to.equal(
-          `${originalStack}\nFrom previous event:\n${stackFrame.stack}`,
-        )
+        expect(thrownError.stack).to.equal([
+          ...originalStack.split('\n'),
+          'From previous event:',
+          ...stackFrame.stack.split('\n').slice(1),
+        ].join('\n'))
       })
     })
   })

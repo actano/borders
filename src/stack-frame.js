@@ -1,3 +1,7 @@
+const BORDERS_STACK_PATTERN = /^.*\/borders\/lib\/.*$/
+
+const filterStack = stack => stack.filter(part => !BORDERS_STACK_PATTERN.test(part))
+
 export class StackFrame extends Error {
   constructor() {
     super()
@@ -5,7 +9,14 @@ export class StackFrame extends Error {
   }
 
   attachStack(err) {
-    const newStack = `${err.stack}\nFrom previous event:\n${this.stack}`
+    const newStack = [
+      ...err.stack.split('\n'),
+      'From previous event:',
+      ...this.stack.split('\n').slice(1),
+    ]
+
+    const filteredStack = filterStack(newStack)
+
     Object.defineProperty(
       err,
       'stack',
@@ -13,7 +24,7 @@ export class StackFrame extends Error {
         configurable: true,
         enumerable: false,
         writable: true,
-        value: newStack,
+        value: filteredStack.join('\n'),
       },
     )
   }

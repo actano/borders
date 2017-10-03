@@ -30,7 +30,7 @@
     "eslint": "^4.3.0",
     "eslint-config-actano-base": "^2.1.0",
     "eslint-plugin-import": "^2.7.0",
-    "mocha": "^3.3.0",
+    "mocha": "^4.0.0",
     "p-wait-for": "^1.0.0",
     "sinon": "^3.2.0"
   },

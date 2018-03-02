@@ -14,7 +14,8 @@
     "command-with-stackframe.js"
   ],
   "scripts": {
-    "prepublishOnly": "npm run clean && npm run ci && babel src --out-dir lib",
+    "build": "babel src --out-dir lib",
+    "prepublishOnly": "npm run clean && npm run ci && npm run build",
     "ci": "npm run lint && npm test",
     "test": "mocha",
     "lint": "eslint src test",

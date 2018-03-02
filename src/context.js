@@ -1,7 +1,14 @@
 import assert from 'assert'
 import pMap from 'p-map'
-import { isFunction, isString, isPromise, isCommand, isGenerator, generatorForSingleValue,
-  isIterable } from './utils'
+import {
+  isFunction,
+  isString,
+  isPromise,
+  isCommand,
+  isGenerator,
+  generatorForSingleValue,
+  isIterable,
+} from './utils'
 
 export default class Context {
   constructor() {
@@ -35,7 +42,7 @@ export default class Context {
       let stackFrame
       try {
         if (isCommand(value)) {
-          stackFrame = value.stackFrame
+          ({ stackFrame } = value)
           nextValue = this.executeCommand(value)
           if (isPromise(nextValue)) {
             nextValue = await nextValue // eslint-disable-line no-await-in-loop

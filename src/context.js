@@ -2,11 +2,13 @@ import assert from 'assert'
 import pMap from 'p-map'
 import { isFunction, isString, isPromise, isCommand, isGenerator, generatorForSingleValue,
   isIterable } from './utils'
+import lazyBackend from './lazy/backend'
 
 export default class Context {
   constructor() {
     this._commands = {}
     this._fork = this._fork.bind(this)
+    this.use(lazyBackend(this._fork))
   }
 
   use(backend) {

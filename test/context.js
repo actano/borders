@@ -3,6 +3,7 @@ import { expect } from 'chai'
 import waitFor from 'p-wait-for'
 import Context from '../src/context'
 import { StackFrame } from '../src/stack-frame'
+import lazy from '../src/lazy/command'
 
 function expectIterable(iterable) {
   expect(typeof iterable[Symbol.iterator]).to.equal('function')
@@ -219,6 +220,61 @@ describe('borders/context', () => {
         expectIterable(result)
           .toIterateOver([101, 102])
       }())
+    })
+  })
+
+  describe('lazy evaluation', () => {
+    it('should evaluate commands lazily', async () => {
+      const context = new Context()
+      const backend = {
+        async command(id) {
+          return { id }
+        },
+      }
+      context.use(backend)
+
+      const callSequence = []
+
+      function* getItem(id) {
+        callSequence.push({ id, call: 'get' })
+        return yield { type: 'command', payload: id }
+      }
+
+      function* allItems() {
+        let id = 1
+        while (true) {
+          yield* getItem(id)
+          id += 1
+        }
+      }
+
+      async function* consumeItems(lazySequence, n) {
+        let i = 1
+        for await (const item of yield lazySequence) {
+          callSequence.push({ id: item.id, call: 'consume' })
+          if (i >= n) {
+            break
+          }
+          i += 1
+        }
+      }
+
+      const allItemsLazy = lazy(allItems())
+
+      await context.execute(consumeItems(allItemsLazy, 5))
+
+      expect(callSequence).to.deep.equal([
+        { id: 1, call: 'get' },
+        { id: 1, call: 'consume' },
+        { id: 2, call: 'get' },
+        { id: 2, call: 'consume' },
+        { id: 3, call: 'get' },
+        { id: 3, call: 'consume' },
+        { id: 4, call: 'get' },
+        { id: 4, call: 'consume' },
+        { id: 5, call: 'get' },
+        { id: 5, call: 'consume' },
+      ])
     })
   })
 })

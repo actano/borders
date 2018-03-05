@@ -308,7 +308,7 @@ describe('borders/context', () => {
         yield* consumeItems(allItemsLazy)
       }())
 
-      // Each item has to be fetched with `get`. Only the first five event items are put with a
+      // Each item has to be fetched with `get`. Only the first five even items are put with a
       // value.
       expect(callSequence).to.deep.equal([
         { id: 1, call: 'get' },

@@ -225,19 +225,28 @@ describe('borders/context', () => {
 
   describe('lazy evaluation', () => {
     it('should evaluate commands lazily', async () => {
-      const context = new Context()
-      const backend = {
-        async command(id) {
-          return { id }
-        },
-      }
-      context.use(backend)
-
       const callSequence = []
 
+      const backend = {
+        async get(id) {
+          callSequence.push({ id, call: 'get' })
+          return { id }
+        },
+        async put({ id, value }) {
+          callSequence.push({ id, call: 'put', value })
+        },
+      }
+
+      const context = new Context()
+      context.use(backend)
+
+
       function* getItem(id) {
-        callSequence.push({ id, call: 'get' })
-        return yield { type: 'command', payload: id }
+        return yield { type: 'get', payload: id }
+      }
+
+      function* putItem(id, value) {
+        return yield { type: 'put', payload: { id, value } }
       }
 
       function* allItems() {
@@ -248,32 +257,75 @@ describe('borders/context', () => {
         }
       }
 
-      async function* consumeItems(lazySequence, n) {
+      async function* even(asyncIterable) {
+        for await (const item of asyncIterable) {
+          if (item.id % 2 === 0) {
+            yield item
+          }
+        }
+      }
+
+      async function* take(n, asyncIterable) {
         let i = 1
-        for await (const item of yield lazySequence) {
-          callSequence.push({ id: item.id, call: 'consume' })
+
+        if (i > n) {
+          return
+        }
+
+        for await (const item of asyncIterable) {
+          yield item
+
           if (i >= n) {
             break
           }
+
           i += 1
         }
       }
 
-      const allItemsLazy = lazy(allItems())
+      async function* setValue(asyncIterable) {
+        for await (const item of asyncIterable) {
+          yield {
+            id: item.id,
+            value: `item-${item.id}`,
+          }
+        }
+      }
 
-      await context.execute(consumeItems(allItemsLazy, 5))
+      async function* consumeItems(allItemsLazy) {
+        // Take the first five even items and set their value
+        const evenItems = even(allItemsLazy)
+        const fiveEvenItems = take(5, evenItems)
+        const fiveEvenItemsWithValue = setValue(fiveEvenItems)
 
+        for await (const item of fiveEvenItemsWithValue) {
+          yield* putItem(item.id, item.value)
+        }
+      }
+
+      await context.execute(async function* test() {
+        const allItemsLazy = yield lazy(allItems())
+        yield* consumeItems(allItemsLazy)
+      }())
+
+      // Each item has to be fetched with `get`. Only the first five event items are put with a
+      // value.
       expect(callSequence).to.deep.equal([
         { id: 1, call: 'get' },
-        { id: 1, call: 'consume' },
         { id: 2, call: 'get' },
-        { id: 2, call: 'consume' },
+        { id: 2, call: 'put', value: 'item-2' },
         { id: 3, call: 'get' },
-        { id: 3, call: 'consume' },
         { id: 4, call: 'get' },
-        { id: 4, call: 'consume' },
+        { id: 4, call: 'put', value: 'item-4' },
         { id: 5, call: 'get' },
-        { id: 5, call: 'consume' },
+        { id: 6, call: 'get' },
+        { id: 6, call: 'put', value: 'item-6' },
+        { id: 7, call: 'get' },
+        { id: 8, call: 'get' },
+        { id: 8, call: 'put', value: 'item-8' },
+        { id: 9, call: 'get' },
+        { id: 10, call: 'get' },
+        { id: 10, call: 'put', value: 'item-10' },
       ])
     })
   })

@@ -11,7 +11,8 @@
   },
   "files": [
     "lib",
-    "command-with-stackframe.js"
+    "command-with-stackframe.js",
+    "commands.js"
   ],
   "scripts": {
     "build": "babel src --out-dir lib",

@@ -1,2 +1,4 @@
-export { commandWithStackFrame } from './src/stack-frame'
-export { default as lazy } from './src/lazy/command'
+module.exports = {
+  commandWithStackFrame: require('./lib/stack-frame').commandWithStackFrame,
+  lazy: require('./lib/lazy/command'),
+}

@@ -10,6 +10,12 @@ import {
   isIterable,
 } from './utils'
 
+async function yieldToEventLoop() {
+  return new Promise((resolve) => {
+    setImmediate(resolve)
+  })
+}
+
 export default class Context {
   constructor() {
     this._commands = {}
@@ -33,6 +39,7 @@ export default class Context {
     return this._commands[type](payload)
   }
 
+  /* eslint-disable no-await-in-loop */
   async execute(generator) {
     let v = generator.next()
     if (isPromise(v)) v = await v
@@ -45,30 +52,36 @@ export default class Context {
           ({ stackFrame } = value)
           nextValue = this.executeCommand(value)
           if (isPromise(nextValue)) {
-            nextValue = await nextValue // eslint-disable-line no-await-in-loop
+            nextValue = await nextValue
           }
         } else if (isPromise(value)) {
-          nextValue = await value // eslint-disable-line no-await-in-loop
+          nextValue = await value
         } else if (isIterable(value)) {
-          // eslint-disable-next-line no-await-in-loop
           nextValue = await pMap(value, this._fork)
         } else {
           throw new Error(`Neither promise nor action was yielded: ${value}`)
         }
         v = generator.next(nextValue)
-        if (isPromise(v)) v = await v; // eslint-disable-line no-await-in-loop
+        if (isPromise(v)) v = await v;
         ({ done, value } = v)
       } catch (e) {
         if (stackFrame) {
           stackFrame.attachStack(e)
         }
         v = generator.throw(e)
-        if (isPromise(v)) v = await v; // eslint-disable-line no-await-in-loop
+        if (isPromise(v)) v = await v;
         ({ done, value } = v)
       }
+
+      // Yield to the node.js event loop to make sure that other tasks are not blocked by the
+      // current execution. Note: Just awaiting a promise is not enough since promises which don't
+      // contain i/o are immediately resolved afterwards on the micro-task queue before any other
+      // task has the chance to run.
+      await yieldToEventLoop()
     }
     return value
   }
+  /* eslint-enable no-await-in-loop */
 
   async _fork(instructions) {
     if (isGenerator(instructions)) {

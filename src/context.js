@@ -16,6 +16,29 @@ async function yieldToEventLoop() {
   })
 }
 
+const withStackFrame = (stackFrame, fn) => {
+  if (!stackFrame) {
+    return fn()
+  }
+
+  let result
+  try {
+    result = fn()
+  } catch (e) {
+    stackFrame.attachStack(e)
+    throw e
+  }
+
+  if (!isPromise(result)) {
+    return result
+  }
+
+  return result.then(undefined, (reason) => {
+    stackFrame.attachStack(reason)
+    throw reason
+  })
+}
+
 export default class Context {
   constructor() {
     this._commands = {}
@@ -33,10 +56,10 @@ export default class Context {
   }
 
   executeCommand(command) {
-    const { type, payload } = command
+    const { type, payload, stackFrame } = command
     assert(isString(type), 'command.type must be string')
     assert(isFunction(this._commands[type]), `command.type "${type}" is unknown`)
-    return this._commands[type](payload)
+    return withStackFrame(stackFrame, () => this._commands[type](payload))
   }
 
   /* eslint-disable no-await-in-loop */
@@ -44,11 +67,9 @@ export default class Context {
     let v = await generator.next()
     while (!v.done) {
       const { value } = v
-      let nextValue
-      let stackFrame
       try {
+        let nextValue
         if (isCommand(value)) {
-          ({ stackFrame } = value)
           nextValue = await this.executeCommand(value)
         } else if (isPromise(value)) {
           nextValue = await value
@@ -59,9 +80,6 @@ export default class Context {
         }
         v = await generator.next(nextValue)
       } catch (e) {
-        if (stackFrame) {
-          stackFrame.attachStack(e)
-        }
         v = await generator.throw(e)
       }
 

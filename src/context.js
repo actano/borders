@@ -1,5 +1,6 @@
 import assert from 'assert'
 import pMap from 'p-map'
+import { withStackFrame } from './stack-frame'
 import {
   isFunction,
   isString,
@@ -14,40 +15,6 @@ import ExecutionContext from './execution-context'
 async function yieldToEventLoop() {
   return new Promise((resolve) => {
     setImmediate(resolve)
-  })
-}
-
-const withStackFrame = (stackFrame, fn) => {
-  if (!stackFrame) {
-    return fn()
-  }
-
-  let result
-  try {
-    result = fn()
-  } catch (e) {
-    stackFrame.attachStack(e)
-    throw e
-  }
-
-  if (isGenerator(result)) {
-    return (function* () {
-      try {
-        return yield* result
-      } catch (e) {
-        stackFrame.attachStack(e)
-        throw e
-      }
-    }())
-  }
-
-  if (!isPromise(result)) {
-    return result
-  }
-
-  return result.then(undefined, (reason) => {
-    stackFrame.attachStack(reason)
-    throw reason
   })
 }
 

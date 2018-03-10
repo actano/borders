@@ -1,3 +1,5 @@
+import { isGenerator, isPromise } from './utils'
+
 const BORDERS_STACK_PATTERN = /^.*\/borders\/lib\/.*$/
 
 const filterStack = stack => stack.filter(part => !BORDERS_STACK_PATTERN.test(part))
@@ -56,3 +58,37 @@ export const commandWithStackFrame = (() => {
 
   return commandCreator => commandCreator
 })()
+
+export const withStackFrame = (stackFrame, fn) => {
+  if (!stackFrame) {
+    return fn()
+  }
+
+  let result
+  try {
+    result = fn()
+  } catch (e) {
+    stackFrame.attachStack(e)
+    throw e
+  }
+
+  if (isGenerator(result)) {
+    return (function* () {
+      try {
+        return yield* result
+      } catch (e) {
+        stackFrame.attachStack(e)
+        throw e
+      }
+    }())
+  }
+
+  if (!isPromise(result)) {
+    return result
+  }
+
+  return result.then(undefined, (reason) => {
+    stackFrame.attachStack(reason)
+    throw reason
+  })
+}

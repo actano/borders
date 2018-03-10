@@ -19,7 +19,11 @@
     "ci": "npm run lint && npm test",
     "test": "mocha",
     "lint": "eslint src test",
-    "clean": "rm -rf lib"
+    "clean": "npm run clean:lib; npm run clean:coverage",
+    "clean:lib": "rm -rf lib",
+    "clean:coverage": "rm -rf coverage .nyc_output",
+    "coverage": "npm run clean:coverage; nyc --reporter=text mocha",
+    "coverage:html": "npm run clean:coverage; nyc --reporter=html mocha; open coverage/index.html"
   },
   "devDependencies": {
     "babel-cli": "^6.24.1",
@@ -32,6 +36,7 @@
     "eslint-config-actano-base": "^3.0.0",
     "eslint-plugin-import": "^2.7.0",
     "mocha": "^5.0.1",
+    "nyc": "^11.4.1",
     "p-wait-for": "^1.0.0",
     "sinon": "^4.0.0"
   },

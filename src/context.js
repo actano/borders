@@ -64,20 +64,23 @@ export default class Context {
 
   /* eslint-disable no-await-in-loop */
   async execute(generator) {
+    const fromAny = async (value) => {
+      if (isCommand(value)) {
+        return this.executeCommand(value)
+      }
+      if (isPromise(value)) {
+        return value
+      }
+      if (isIterable(value)) {
+        return pMap(value, this._fork)
+      }
+      throw new Error(`Neither promise nor action was yielded: ${value}`)
+    }
+
     let v = await generator.next()
     while (!v.done) {
-      const { value } = v
       try {
-        let nextValue
-        if (isCommand(value)) {
-          nextValue = await this.executeCommand(value)
-        } else if (isPromise(value)) {
-          nextValue = await value
-        } else if (isIterable(value)) {
-          nextValue = await pMap(value, this._fork)
-        } else {
-          throw new Error(`Neither promise nor action was yielded: ${value}`)
-        }
+        const nextValue = await fromAny(v.value)
         v = await generator.next(nextValue)
       } catch (e) {
         v = await generator.throw(e)

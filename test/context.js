@@ -1,8 +1,13 @@
 import sinon from 'sinon'
-import { expect } from 'chai'
+import chai from 'chai'
+import chaiAsPromised from 'chai-as-promised'
 import waitFor from 'p-wait-for'
 import Context from '../src/context'
 import { StackFrame } from '../src/stack-frame'
+
+chai.use(chaiAsPromised)
+
+const { expect } = chai
 
 function expectIterable(iterable) {
   expect(typeof iterable[Symbol.iterator]).to.equal('function')
@@ -108,31 +113,6 @@ describe('borders/context', () => {
 
       expect(thrownError).to.equal(backendError)
     })
-
-    context('when command contains a stack frame', () => {
-      it('should append the stack frame of the command to the error', async () => {
-        let thrownError
-        const stackFrame = new StackFrame()
-        const originalStack = backendError.stack
-        const context = new Context()
-
-        context.use(backend)
-
-        await context.execute(function* test() {
-          try {
-            yield { type: 'test', stackFrame }
-          } catch (e) {
-            thrownError = e
-          }
-        }())
-
-        expect(thrownError.stack).to.equal([
-          ...originalStack.split('\n'),
-          'From previous event:',
-          ...stackFrame.stack.split('\n').slice(1),
-        ].join('\n'))
-      })
-    })
   })
 
   describe('executing multiple commands at once', () => {
@@ -220,5 +200,48 @@ describe('borders/context', () => {
           .toIterateOver([101, 102])
       }())
     })
+  })
+
+  describe('when generator yields unsupported value', () => {
+    it('should throw an error', async () => {
+      const context = new Context()
+      const backend = {
+        test() {
+          return 42
+        },
+      }
+      context.use(backend)
+
+      const executePromise = context.execute(function* test() {
+        yield { type: 'test' }
+        yield 123
+      }())
+
+      await expect(executePromise).to.be.rejectedWith(Error)
+    })
+  })
+
+  it('should execute async generators', async () => {
+    const context = new Context()
+    const backend = {
+      test() {
+        return 42
+      },
+    }
+    context.use(backend)
+
+    const result = await context.execute(async function* test() {
+      const command = await Promise.resolve({ type: 'test' })
+      yield command
+      try {
+        yield 123
+      } catch (e) {
+        return 101
+      }
+
+      return 102
+    }())
+
+    expect(result).to.equal(101)
   })
 })

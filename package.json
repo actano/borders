@@ -24,7 +24,7 @@
     "clean:coverage": "rm -rf coverage .nyc_output coverage.lcov",
     "coverage": "npm run clean:coverage; nyc --reporter=text mocha",
     "coverage:html": "npm run clean:coverage; nyc --reporter=html mocha; open coverage/index.html",
-    "coverage:codecov": "nyc report --reporter=text-lcov > coverage.lcov"
+    "coverage:codecov": "npm run coverage && nyc report --reporter=text-lcov > coverage.lcov"
   },
   "devDependencies": {
     "babel-cli": "^6.24.1",

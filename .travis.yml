@@ -11,6 +11,7 @@ before_script: greenkeeper-lockfile-update
 script:
 - npm run ci
 after_script: greenkeeper-lockfile-upload
+after_success: npm run coverage:codecov
 deploy:
   provider: npm
   skip_cleanup: true

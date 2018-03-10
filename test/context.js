@@ -3,7 +3,6 @@ import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import waitFor from 'p-wait-for'
 import Context from '../src/context'
-import { StackFrame } from '../src/stack-frame'
 
 chai.use(chaiAsPromised)
 

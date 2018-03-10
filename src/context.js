@@ -41,19 +41,15 @@ export default class Context {
 
   /* eslint-disable no-await-in-loop */
   async execute(generator) {
-    let v = generator.next()
-    if (isPromise(v)) v = await v
-    let { done, value } = v
-    while (!done) {
+    let v = await generator.next()
+    while (!v.done) {
+      const { value } = v
       let nextValue
       let stackFrame
       try {
         if (isCommand(value)) {
           ({ stackFrame } = value)
-          nextValue = this.executeCommand(value)
-          if (isPromise(nextValue)) {
-            nextValue = await nextValue
-          }
+          nextValue = await this.executeCommand(value)
         } else if (isPromise(value)) {
           nextValue = await value
         } else if (isIterable(value)) {
@@ -61,16 +57,12 @@ export default class Context {
         } else {
           throw new Error(`Neither promise nor action was yielded: ${value}`)
         }
-        v = generator.next(nextValue)
-        if (isPromise(v)) v = await v;
-        ({ done, value } = v)
+        v = await generator.next(nextValue)
       } catch (e) {
         if (stackFrame) {
           stackFrame.attachStack(e)
         }
-        v = generator.throw(e)
-        if (isPromise(v)) v = await v;
-        ({ done, value } = v)
+        v = await generator.throw(e)
       }
 
       // Yield to the node.js event loop to make sure that other tasks are not blocked by the
@@ -79,7 +71,7 @@ export default class Context {
       // task has the chance to run.
       await yieldToEventLoop()
     }
-    return value
+    return v.value
   }
   /* eslint-enable no-await-in-loop */
 

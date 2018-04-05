@@ -24,18 +24,58 @@ const runWithNodeEnv = (nodeEnv, fn) => () => {
 }
 
 describe('commandWithStackFrame', () => {
-  let backend
   let backendErrorStack
 
-  beforeEach(() => {
-    backend = {
-      test() {
-        const backendError = new Error()
-        backendErrorStack = backendError.stack
-        throw backendError
-      },
+  async function runTestWithError(commandWithStackFrame, backend, devMode) {
+    let thrownError
+
+    const createCommand = commandWithStackFrame(() => ({ type: 'test' }))
+    const command = createCommand()
+
+    const context = new Context()
+    context.use(backend)
+
+    await context.execute(function* test() {
+      try {
+        yield command
+      } catch (e) {
+        thrownError = e
+      }
+    }())
+
+    if (devMode) {
+      expect(command).to.have.property('stackFrame')
+      expect(thrownError.stack).to.equal([
+        ...backendErrorStack.split('\n'),
+        'From previous event:',
+        ...command.stackFrame.stack.split('\n').slice(1),
+      ].join('\n'))
+    } else {
+      expect(command).to.not.have.property('stackFrame')
+      expect(thrownError.stack).to.equal(backendErrorStack)
     }
-  })
+  }
+
+  async function runTestWithoutError(commandWithStackFrame, devMode) {
+    const createCommand = commandWithStackFrame(() => ({ type: 'test' }))
+    const command = createCommand()
+
+    const context = new Context()
+    const backend = {
+      test() {},
+    }
+    context.use(backend)
+
+    await context.execute(function* test() {
+      yield command
+    }())
+
+    if (devMode) {
+      expect(command).to.have.property('stackFrame')
+    } else {
+      expect(command).to.not.have.property('stackFrame')
+    }
+  }
 
   context('development environment', runWithNodeEnv('development', () => {
     let commandWithStackFrame
@@ -44,29 +84,53 @@ describe('commandWithStackFrame', () => {
       ({ commandWithStackFrame } = requireNoCache('../src/stack-frame'))
     })
 
-    it('should append the stack frame of the command to the error', async () => {
-      let thrownError
-
-      const createCommand = commandWithStackFrame(() => ({ type: 'test' }))
-      const command = createCommand()
-
-      const context = new Context()
-      context.use(backend)
-
-      await context.execute(function* test() {
-        try {
-          yield command
-        } catch (e) {
-          thrownError = e
+    context('when backend throws error synchronously', () => {
+      it('should append the stack frame of the command to the error', async () => {
+        const backend = {
+          test() {
+            const backendError = new Error()
+            backendErrorStack = backendError.stack
+            throw backendError
+          },
         }
-      }())
 
-      expect(command).to.have.property('stackFrame')
-      expect(thrownError.stack).to.equal([
-        ...backendErrorStack.split('\n'),
-        'From previous event:',
-        ...command.stackFrame.stack.split('\n').slice(1),
-      ].join('\n'))
+        await runTestWithError(commandWithStackFrame, backend, true)
+      })
+    })
+
+    context('when backend is a generator function', () => {
+      it('should append the stack frame of the command to the error', async () => {
+        const backend = {
+          // eslint-disable-next-line require-yield
+          * test() {
+            const backendError = new Error()
+            backendErrorStack = backendError.stack
+            throw backendError
+          },
+        }
+
+        await runTestWithError(commandWithStackFrame, backend, true)
+      })
+    })
+
+    context('when backend is async', () => {
+      it('should append the stack frame of the command to the error', async () => {
+        const backend = {
+          async test() {
+            const backendError = new Error()
+            backendErrorStack = backendError.stack
+            throw backendError
+          },
+        }
+
+        await runTestWithError(commandWithStackFrame, backend, true)
+      })
+    })
+
+    context('when backend does not throw an error', () => {
+      it('should pass', async () => {
+        await runTestWithoutError(commandWithStackFrame, true)
+      })
     })
   }))
 
@@ -77,25 +141,53 @@ describe('commandWithStackFrame', () => {
       ({ commandWithStackFrame } = requireNoCache('../src/stack-frame'))
     })
 
-    it('should have the original backend error stack', async () => {
-      let thrownError
-
-      const createCommand = commandWithStackFrame(() => ({ type: 'test' }))
-      const command = createCommand()
-
-      const context = new Context()
-      context.use(backend)
-
-      await context.execute(function* test() {
-        try {
-          yield command
-        } catch (e) {
-          thrownError = e
+    context('when backend throws error synchronously', () => {
+      it('should append the stack frame of the command to the error', async () => {
+        const backend = {
+          test() {
+            const backendError = new Error()
+            backendErrorStack = backendError.stack
+            throw backendError
+          },
         }
-      }())
 
-      expect(command).to.not.have.property('stackFrame')
-      expect(thrownError.stack).to.equal(backendErrorStack)
+        await runTestWithError(commandWithStackFrame, backend, false)
+      })
+    })
+
+    context('when backend is a generator function', () => {
+      it('should append the stack frame of the command to the error', async () => {
+        const backend = {
+          // eslint-disable-next-line require-yield
+          * test() {
+            const backendError = new Error()
+            backendErrorStack = backendError.stack
+            throw backendError
+          },
+        }
+
+        await runTestWithError(commandWithStackFrame, backend, false)
+      })
+    })
+
+    context('when backend is async', () => {
+      it('should append the stack frame of the command to the error', async () => {
+        const backend = {
+          async test() {
+            const backendError = new Error()
+            backendErrorStack = backendError.stack
+            throw backendError
+          },
+        }
+
+        await runTestWithError(commandWithStackFrame, backend, false)
+      })
+    })
+
+    context('when backend does not throw an error', () => {
+      it('should pass', async () => {
+        await runTestWithoutError(commandWithStackFrame, false)
+      })
     })
   }))
 })

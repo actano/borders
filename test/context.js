@@ -243,4 +243,23 @@ describe('borders/context', () => {
 
     expect(result).to.equal(101)
   })
+
+  it('should run backends with generator functions', async () => {
+    const context = new Context()
+    const backend = {
+      * testGenerator({ id }) {
+        return yield { type: 'test', payload: { value: id } }
+      },
+      test({ value }) {
+        return value
+      },
+    }
+    context.use(backend)
+
+    const result = await context.execute(function* () {
+      return yield { type: 'testGenerator', payload: { id: 42 } }
+    }())
+
+    expect(result).to.equal(42)
+  })
 })

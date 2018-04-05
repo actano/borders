@@ -29,6 +29,17 @@ const withStackFrame = (stackFrame, fn) => {
     throw e
   }
 
+  if (isGenerator(result)) {
+    return (function* () {
+      try {
+        return yield* result
+      } catch (e) {
+        stackFrame.attachStack(e)
+        throw e
+      }
+    }())
+  }
+
   if (!isPromise(result)) {
     return result
   }
@@ -66,7 +77,11 @@ export default class Context {
   async execute(generator) {
     const fromAny = async (value) => {
       if (isCommand(value)) {
-        return this.executeCommand(value)
+        const result = this.executeCommand(value)
+        if (isGenerator(result)) {
+          return this.execute(result)
+        }
+        return result
       }
       if (isPromise(value)) {
         return value

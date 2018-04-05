@@ -3,6 +3,7 @@ import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import waitFor from 'p-wait-for'
 import Context from '../src/context'
+import ExecutionContext from '../src/execution-context'
 
 chai.use(chaiAsPromised)
 
@@ -53,7 +54,8 @@ describe('borders/context', () => {
       yield { type, payload }
     }())
     expect(spy.callCount).to.eq(1)
-    expect(spy.alwaysCalledWithExactly(payload)).to.eq(true)
+    expect(spy.alwaysCalledWithExactly(payload, sinon.match.instanceOf(ExecutionContext)))
+      .to.eq(true)
   })
 
   it('should resolve promises before passing back', async () => {
@@ -261,5 +263,41 @@ describe('borders/context', () => {
     }())
 
     expect(result).to.equal(42)
+  })
+
+  describe('execution context', () => {
+    it('should track call stacks via execution context', async () => {
+      const context = new Context()
+
+      const runningCalls = new Map()
+      const backend = {
+        getDataViaContext(payload, ctx) {
+          for (const [id, data] of runningCalls) {
+            if (ctx.isDescendantOf(id)) {
+              return data
+            }
+          }
+
+          return null
+        },
+        * test({ data }, ctx) {
+          runningCalls.set(ctx.getId(), data)
+          const result = yield { type: 'getDataViaContext' }
+          runningCalls.delete(ctx.getId())
+          return result
+        },
+      }
+      context.use(backend)
+
+      const result = await context.execute(function* () {
+        return yield [
+          { type: 'test', payload: { data: 20 } },
+          { type: 'getDataViaContext' },
+          { type: 'test', payload: { data: 30 } },
+        ]
+      }())
+
+      expect(result).to.deep.equal([20, null, 30])
+    })
   })
 })

@@ -9,6 +9,7 @@ import {
   generatorForSingleValue,
   isIterable,
 } from './utils'
+import ExecutionContext from './execution-context'
 
 async function yieldToEventLoop() {
   return new Promise((resolve) => {
@@ -66,20 +67,25 @@ export default class Context {
     return this
   }
 
-  executeCommand(command) {
+  async execute(generator) {
+    return this._execute(generator, null)
+  }
+
+  _executeCommand(command, executionContext) {
     const { type, payload, stackFrame } = command
     assert(isString(type), 'command.type must be string')
     assert(isFunction(this._commands[type]), `command.type "${type}" is unknown`)
-    return withStackFrame(stackFrame, () => this._commands[type](payload))
+    return withStackFrame(stackFrame, () => this._commands[type](payload, executionContext))
   }
 
   /* eslint-disable no-await-in-loop */
-  async execute(generator) {
+  async _execute(generator, parentExecutionContext) {
+    const executionContext = new ExecutionContext(parentExecutionContext)
     const fromAny = async (value) => {
       if (isCommand(value)) {
-        const result = this.executeCommand(value)
+        const result = this._executeCommand(value, executionContext)
         if (isGenerator(result)) {
-          return this.execute(result)
+          return this._execute(result, executionContext)
         }
         return result
       }
@@ -87,7 +93,7 @@ export default class Context {
         return value
       }
       if (isIterable(value)) {
-        return pMap(value, this._fork)
+        return pMap(value, x => this._fork(x, executionContext))
       }
       throw new Error(`Neither promise nor action was yielded: ${value}`)
     }
@@ -111,11 +117,11 @@ export default class Context {
   }
   /* eslint-enable no-await-in-loop */
 
-  async _fork(instructions) {
+  async _fork(instructions, executionContext) {
     if (isGenerator(instructions)) {
-      return this.execute(instructions)
+      return this._execute(instructions, executionContext)
     }
 
-    return this.execute(generatorForSingleValue(instructions))
+    return this._execute(generatorForSingleValue(instructions), executionContext)
   }
 }

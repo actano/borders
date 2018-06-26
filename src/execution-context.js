@@ -22,6 +22,10 @@ class ExecutionContext {
   isDescendantOf(id) {
     return this.ancestors.has(id)
   }
+
+  toString() {
+    return this.id
+  }
 }
 
 export default ExecutionContext

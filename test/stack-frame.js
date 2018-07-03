@@ -132,6 +132,22 @@ describe('commandWithStackFrame', () => {
         await runTestWithoutError(commandWithStackFrame, true)
       })
     })
+
+    context('when the same error object is attached multiple times', () => {
+      it('should attach the stack frame to the original error stack', async () => {
+        const backendError = new Error()
+        backendErrorStack = backendError.stack
+
+        const backend = {
+          test() {
+            throw backendError
+          },
+        }
+
+        await runTestWithError(commandWithStackFrame, backend, true)
+        await runTestWithError(commandWithStackFrame, backend, true)
+      })
+    })
   }))
 
   context('non-development environment', runWithNodeEnv('production', () => {

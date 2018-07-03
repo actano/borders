@@ -9,13 +9,20 @@ export class StackFrame extends Error {
   }
 
   attachStack(err) {
-    const newStack = [
-      ...err.stack.split('\n'),
-      'From previous event:',
-      ...this.stack.split('\n').slice(1),
-    ]
+    if (!err.__originalStack__) {
+      Object.defineProperty(
+        err,
+        '__originalStack__',
+        {
+          configurable: true,
+          enumerable: false,
+          writable: false,
+          value: err.stack,
+        },
+      )
+    }
 
-    const filteredStack = filterStack(newStack)
+    const self = this
 
     Object.defineProperty(
       err,
@@ -23,8 +30,16 @@ export class StackFrame extends Error {
       {
         configurable: true,
         enumerable: false,
-        writable: true,
-        value: filteredStack.join('\n'),
+        get() {
+          const newStack = [
+            ...this.__originalStack__.split('\n'),
+            'From previous event:',
+            ...self.stack.split('\n').slice(1),
+          ]
+
+          const filteredStack = filterStack(newStack)
+          return filteredStack.join('\n')
+        },
       },
     )
   }

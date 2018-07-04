@@ -1,6 +1,5 @@
 import assert from 'assert'
 import { deprecate } from 'util'
-import ExecutionContext from './execution-context'
 import iteratorToAsync from './iterator-to-async'
 import { withStackFrame } from './stack-frame'
 import { isGenerator, isString } from './utils'
@@ -22,19 +21,33 @@ const deprecateIterable = deprecate(() => {
 const deprecatePromise = deprecate(() => {
 }, 'yielding a promise is depracted, await the promise in an async generator instead')
 
-export default commands => ({
-  async [COMMAND](value, context) {
+const createNewId = (() => {
+  let id = 0
+
+  return () => {
+    const result = id
+    id += 1
+    return result
+  }
+})()
+
+const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => ({
+  id,
+  ancestors: new Set(ancestors).add(id),
+  async [COMMAND](value) {
     const { type, payload, stackFrame } = value
     assert(isString(type), 'command.type must be string')
-    return withStackFrame(stackFrame, () => commands[type](payload, context))
+    const getId = () => this.id
+    const isDescendantOf = _id => this.ancestors.has(_id)
+    return withStackFrame(stackFrame, () => commands[type](payload, { getId, isDescendantOf }))
   },
 
-  async [ITERATOR](value, context) {
-    return iteratorToAsync(this.iterate(value, context))
+  async [ITERATOR](value) {
+    return iteratorToAsync(this.iterate(value))
   },
 
-  async [ARRAY](value, context) {
-    return Promise.all(value.map(v => this.execute(v, context)))
+  async [ARRAY](value) {
+    return Promise.all(value.map(v => this.execute(v)))
   },
 
   async [PROMISE](value) {
@@ -42,36 +55,36 @@ export default commands => ({
     return value
   },
 
-  async [ITERABLE](value, context) {
+  async [ITERABLE](value) {
     deprecateIterable()
     const result = []
     for (const x of value) {
-      result.push(this.execute(x, context))
+      result.push(this.execute(x))
     }
     return Promise.all(result)
   },
 
-  async execute(value, parentContext) {
+  async execute(value) {
     const type = valueType(value)
     if (type === null) {
       return value
     }
-    const context = new ExecutionContext(parentContext)
+    const executor = createExecutor(commands, this.ancestors)
     if (type === ITERATOR) {
-      const v = await this.iterate(value, context).next()
+      const v = await executor.iterate(value).next()
       if (!v.done) {
         throw new Error(`yielding literal values inside execute is not allowed: ${v.value}`)
       }
       return v.value
     }
-    const result = await this[type](value, context)
+    const result = await executor[type](value)
     if (type === COMMAND && isGenerator(result)) {
-      return this.execute(result, context)
+      return executor.execute(result)
     }
     return result
   },
 
-  async* step(iterator, value, context) {
+  async* step(iterator, value) {
     await yieldToEventLoop()
     const type = valueType(value)
     let nextValue
@@ -79,9 +92,10 @@ export default commands => ({
       if (type === null) {
         nextValue = yield value
       } else {
-        nextValue = await this[type](value, context)
+        nextValue = await this[type](value)
         if (type === COMMAND && isGenerator(nextValue)) {
-          nextValue = yield* this.iterate(nextValue, new ExecutionContext(context))
+          const executor = createExecutor(commands, this.ancestors)
+          nextValue = yield* executor.iterate(nextValue)
         }
       }
     } catch (e) {
@@ -90,11 +104,13 @@ export default commands => ({
     return iterator.next(nextValue)
   },
 
-  async* iterate(iterator, context) {
+  async* iterate(iterator) {
     let v = await iterator.next()
     while (!v.done) {
-      v = yield* this.step(iterator, v.value, context)
+      v = yield* this.step(iterator, v.value)
     }
     return v.value
   },
 })
+
+export default commands => createExecutor(commands)

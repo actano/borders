@@ -3,7 +3,6 @@ import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import waitFor from 'p-wait-for'
 import Context from '../src/context'
-import ExecutionContext from '../src/execution-context'
 
 chai.use(chaiAsPromised)
 
@@ -55,8 +54,6 @@ describe('borders', () => {
         yield { type, payload }
       }())
       expect(spy.callCount).to.eq(1)
-      expect(spy.alwaysCalledWithExactly(payload, sinon.match.instanceOf(ExecutionContext)))
-        .to.eq(true)
     })
 
     it('should resolve promises before passing back', async () => {

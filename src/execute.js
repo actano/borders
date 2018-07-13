@@ -19,7 +19,7 @@ async function yieldToEventLoop() {
 const deprecateIterable = deprecate(() => {
 }, 'yielding an iterable is deprecated, yield values directly from a generator passed to borders.iterate() instead and iterate over the results')
 const deprecatePromise = deprecate(() => {
-}, 'yielding a promise is depracted, await the promise in an async generator instead')
+}, 'yielding a promise is deprecated, await the promise in an async generator instead')
 
 const createNewId = (() => {
   let id = 0

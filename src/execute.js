@@ -4,17 +4,7 @@ import { deprecate } from 'util'
 import { withStackFrame } from './stack-frame'
 import { isGenerator, isString } from './utils'
 import valueType, { ARRAY, COMMAND, ITERABLE, ITERATOR, PROMISE } from './value-type'
-
-// Yield to the node.js event loop to make sure that other tasks are not blocked by the
-// current execution. Note: Just awaiting a promise is not enough since promises which don't
-// contain i/o are immediately resolved afterwards on the micro-task queue before any other
-// task has the chance to run.
-
-async function yieldToEventLoop() {
-  return new Promise((resolve) => {
-    setImmediate(resolve)
-  })
-}
+import yieldToEventLoop from './yield-to-event-loop'
 
 const deprecateIterable = deprecate(() => {
 }, 'yielding an iterable is deprecated, yield values directly from a generator passed to borders.iterate() instead and iterate over the results')

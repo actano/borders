@@ -46,7 +46,7 @@ export class StackFrame extends Error {
 }
 
 export const commandWithStackFrame = (() => {
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV !== 'production') {
     return commandCreator => (...args) => {
       const command = commandCreator(...args)
       command.stackFrame = new StackFrame()

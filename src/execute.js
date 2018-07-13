@@ -1,6 +1,6 @@
 import assert from 'assert'
 import { deprecate } from 'util'
-import iteratorToAsync from './iterator-to-async'
+// import iteratorToAsync from './iterator-to-async'
 import { withStackFrame } from './stack-frame'
 import { isGenerator, isString } from './utils'
 import valueType, { ARRAY, COMMAND, ITERABLE, ITERATOR, PROMISE } from './value-type'
@@ -43,7 +43,8 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
   },
 
   async [ITERATOR](value) {
-    return iteratorToAsync(this.iterate(value))
+    return this.execute(value)
+    // return iteratorToAsync(this.iterate(value))
   },
 
   async [ARRAY](value) {

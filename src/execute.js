@@ -85,7 +85,6 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
   },
 
   async* step(iterator, value) {
-    await yieldToEventLoop()
     const type = valueType(value)
     let nextValue
     try {
@@ -100,6 +99,8 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
       }
     } catch (e) {
       return iterator.throw(e)
+    } finally {
+      await yieldToEventLoop()
     }
     return iterator.next(nextValue)
   },

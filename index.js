@@ -1,1 +1,1 @@
-module.exports = require('./lib/context')
+module.exports = require('./lib/index.js')

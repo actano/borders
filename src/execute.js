@@ -1,5 +1,6 @@
 import assert from 'assert'
 import { deprecate } from 'util'
+import { TYPE_PROMISE } from './promise-command'
 // import iteratorToAsync from './iterator-to-async'
 import { withStackFrame } from './stack-frame'
 import { isGenerator, isString } from './utils'
@@ -27,6 +28,9 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
   async [COMMAND](value) {
     const { type, payload, stackFrame } = value
     assert(isString(type), 'command.type must be string')
+    if (type === TYPE_PROMISE) {
+      return payload
+    }
     const getId = () => this.id
     const isDescendantOf = _id => this.ancestors.has(_id)
     return withStackFrame(stackFrame, () => commands[type](payload, { getId, isDescendantOf }))

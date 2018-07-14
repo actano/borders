@@ -88,10 +88,9 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
           nextValue = yield* executor.iterate(nextValue)
         }
       }
+      await yieldToEventLoop()
     } catch (e) {
       return iterator.throw(e)
-    } finally {
-      await yieldToEventLoop()
     }
     return iterator.next(nextValue)
   },

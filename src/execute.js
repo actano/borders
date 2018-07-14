@@ -1,5 +1,6 @@
 import assert from 'assert'
 import { deprecate } from 'util'
+import { TYPE_PARALLEL } from './parallel-command'
 import { TYPE_PROMISE } from './promise-command'
 // import iteratorToAsync from './iterator-to-async'
 import { withStackFrame } from './stack-frame'
@@ -30,6 +31,9 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
     assert(isString(type), 'command.type must be string')
     if (type === TYPE_PROMISE) {
       return payload
+    }
+    if (type === TYPE_PARALLEL) {
+      return Promise.all(payload.map(v => this.execute(v)))
     }
     const getId = () => this.id
     const isDescendantOf = _id => this.ancestors.has(_id)

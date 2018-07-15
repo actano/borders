@@ -10,6 +10,7 @@ import {
   isIterable,
 } from './utils'
 import ExecutionContext from './execution-context'
+import { TYPE_PARALLEL } from './parallel-command'
 import { TYPE_PROMISE } from './promise-command'
 
 async function yieldToEventLoop() {
@@ -77,6 +78,9 @@ export default class Context {
     assert(isString(type), 'command.type must be string')
     if (type === TYPE_PROMISE) {
       return payload
+    }
+    if (type === TYPE_PARALLEL) {
+      return Promise.all(payload.map(v => this.execute(v)))
     }
     assert(isFunction(this._commands[type]), `command.type "${type}" is unknown`)
     return withStackFrame(stackFrame, () => this._commands[type](payload, executionContext))

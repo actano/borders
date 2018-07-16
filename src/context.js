@@ -80,7 +80,7 @@ export default class Context {
       return payload
     }
     if (type === TYPE_PARALLEL) {
-      return Promise.all(payload.map(v => this.execute(v)))
+      return Promise.all(payload.map(v => this._execute(v, executionContext)))
     }
     assert(isFunction(this._commands[type]), `command.type "${type}" is unknown`)
     return withStackFrame(stackFrame, () => this._commands[type](payload, executionContext))

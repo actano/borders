@@ -107,6 +107,10 @@ export default class Context {
       throw new Error(`Neither promise nor action was yielded: ${value}`)
     }
 
+    if (isCommand(generator)) {
+      return fromAny(generator)
+    }
+
     let v = await generator.next()
     while (!v.done) {
       try {

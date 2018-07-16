@@ -33,7 +33,7 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
       return payload
     }
     if (type === TYPE_PARALLEL) {
-      return Promise.all(payload.map(v => this.execute(v)))
+      return withStackFrame(stackFrame, () => Promise.all(payload.map(v => this.execute(v))))
     }
     const getId = () => this.id
     const isDescendantOf = _id => this.ancestors.has(_id)

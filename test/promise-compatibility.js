@@ -20,7 +20,7 @@ const catchMeIfYouCan = fn => async () => {
   expect(handled, 'Rejection not handled').to.not.eq(null)
 }
 
-describe('promise incompatibilities', () => {
+describe('promise compatibility', () => {
   let listeners
 
   before('remove process listener', () => {

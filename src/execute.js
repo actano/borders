@@ -1,5 +1,7 @@
 import assert from 'assert'
 import { deprecate } from 'util'
+import { TYPE_ITERATE } from './iterate-command'
+import iteratorToAsync from './iterator-to-async'
 import { TYPE_PARALLEL } from './parallel-command'
 import { TYPE_PROMISE } from './promise-command'
 import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
@@ -37,6 +39,9 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
     }
     if (type === TYPE_PARALLEL) {
       return withStackFrame(stackFrame, () => Promise.all(payload.map(v => this.execute(v))))
+    }
+    if (type === TYPE_ITERATE) {
+      return iteratorToAsync(this.iterate(evaluateWithStackFrame(stackFrame, payload)))
     }
     const getId = () => this.id
     const isDescendantOf = _id => this.ancestors.has(_id)

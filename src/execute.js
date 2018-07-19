@@ -12,6 +12,10 @@ const deprecateIterable = deprecate(() => {
 }, 'yielding an iterable is deprecated, yield values directly from a generator passed to borders.iterate() instead and iterate over the results')
 const deprecatePromise = deprecate(() => {
 }, 'yielding a promise is deprecated, await the promise in an async generator instead')
+const deprecateIterator = deprecate(() => {
+}, 'yielding an iterator is deprecated, yield `iterate` or `parallel` commands instead')
+const deprecateArray = deprecate(() => {
+}, 'yielding an array is deprecated, yield `iterate` or `parallel` commands instead')
 
 const createNewId = (() => {
   let id = 0
@@ -41,11 +45,12 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
   },
 
   async [ITERATOR](value) {
+    deprecateIterator()
     return this.execute(value)
-    // return iteratorToAsync(this.iterate(value))
   },
 
   async [ARRAY](value) {
+    deprecateArray()
     return Promise.all(value.map(v => this.execute(v)))
   },
 

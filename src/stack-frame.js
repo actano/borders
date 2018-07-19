@@ -1,4 +1,4 @@
-import { isGenerator, isPromise } from './utils'
+import { isPromise } from './utils'
 
 const BORDERS_STACK_PATTERN = /^.*\/borders\/lib\/.*$/
 
@@ -72,17 +72,6 @@ export const withStackFrame = (stackFrame, fn) => {
     throw e
   }
 
-  if (isGenerator(result)) {
-    return (function* () {
-      try {
-        return yield* result
-      } catch (e) {
-        stackFrame.attachStack(e)
-        throw e
-      }
-    }())
-  }
-
   if (!isPromise(result)) {
     return result
   }
@@ -91,4 +80,14 @@ export const withStackFrame = (stackFrame, fn) => {
     stackFrame.attachStack(reason)
     throw reason
   })
+}
+
+export async function* evaluateWithStackFrame(stackFrame, generator) {
+  if (!stackFrame) return yield* generator
+  try {
+    return yield* generator
+  } catch (e) {
+    stackFrame.attachStack(e)
+    throw e
+  }
 }

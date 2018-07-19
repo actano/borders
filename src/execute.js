@@ -2,8 +2,7 @@ import assert from 'assert'
 import { deprecate } from 'util'
 import { TYPE_PARALLEL } from './parallel-command'
 import { TYPE_PROMISE } from './promise-command'
-// import iteratorToAsync from './iterator-to-async'
-import { withStackFrame } from './stack-frame'
+import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
 import { isGenerator, isString } from './utils'
 import valueType, { ARRAY, COMMAND, ITERABLE, ITERATOR, PROMISE } from './value-type'
 import yieldToEventLoop from './yield-to-event-loop'
@@ -41,7 +40,12 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
     }
     const getId = () => this.id
     const isDescendantOf = _id => this.ancestors.has(_id)
-    return withStackFrame(stackFrame, () => commands[type](payload, { getId, isDescendantOf }))
+    const res = withStackFrame(stackFrame, () => commands[type](payload, { getId, isDescendantOf }))
+    if (isGenerator(res)) {
+      return this.execute(evaluateWithStackFrame(stackFrame, res))
+    }
+
+    return res
   },
 
   async [ITERATOR](value) {
@@ -81,11 +85,7 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
       }
       return v.value
     }
-    const result = await executor[type](value)
-    if (type === COMMAND && isGenerator(result)) {
-      return executor.execute(result)
-    }
-    return result
+    return executor[type](value)
   },
 
   async* step(iterator, value) {
@@ -96,10 +96,6 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
         nextValue = yield value
       } else {
         nextValue = await this[type](value)
-        if (type === COMMAND && isGenerator(nextValue)) {
-          const executor = createExecutor(commands, this.ancestors)
-          nextValue = yield* executor.iterate(nextValue)
-        }
       }
       await yieldToEventLoop()
     } catch (e) {

@@ -7,7 +7,7 @@
       "targets": {
         "node": 8
       },
-      "useBuiltIns": "usage",
+      "useBuiltIns": "false",
       "shippedProposals": true
     }]
   ]

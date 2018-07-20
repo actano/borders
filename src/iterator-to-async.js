@@ -1,3 +1,5 @@
+import './symbol-async-iterator'
+
 // this file wants to be a standalone module, once this proposal is stage 4
 /**
  * convert any iterator to an async iterator (https://github.com/tc39/proposal-async-iteration).

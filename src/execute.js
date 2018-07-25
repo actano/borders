@@ -81,7 +81,7 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
   async execute(value) {
     const type = valueType(value)
     if (type === null) {
-      return value
+      throw new Error(`Cannot execute ${value}`)
     }
     const executor = createExecutor(commands, this.ancestors)
     if (type === ITERATOR) {

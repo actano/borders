@@ -2,6 +2,7 @@ import assert from 'assert'
 import { deprecate } from 'util'
 import { TYPE_ITERATE } from './iterate-command'
 import iteratorToAsync from './iterator-to-async'
+import { TYPE_MAP } from './map-command'
 import { TYPE_PARALLEL } from './parallel-command'
 import { TYPE_PROMISE } from './promise-command'
 import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
@@ -29,6 +30,18 @@ const createNewId = (() => {
   }
 })()
 
+function* mapCollection(self, collection, iteratee) {
+  for (const item of collection) {
+    const value = iteratee(item)
+    const type = valueType(value)
+    if (type === COMMAND || type === ITERATOR) {
+      yield self.execute(value)
+    } else {
+      yield value
+    }
+  }
+}
+
 const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => ({
   id,
   ancestors: new Set(ancestors).add(id),
@@ -43,6 +56,10 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
     }
     if (type === TYPE_ITERATE) {
       return iteratorToAsync(this.iterate(evaluateWithStackFrame(stackFrame, payload)))
+    }
+    if (type === TYPE_MAP) {
+      const { collection, iteratee } = payload
+      return iteratorToAsync(mapCollection(this, collection, iteratee))
     }
     const getId = () => this.id
     const isDescendantOf = _id => this.ancestors.has(_id)

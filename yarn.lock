@@ -2707,13 +2707,21 @@ p-locate@^2.0.0:
   dependencies:
     p-limit "^1.1.0"
 
+p-timeout@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/p-timeout/-/p-timeout-2.0.1.tgz#d8dd1979595d2dc0139e1fe46b8b646cb3cdf038"
+  dependencies:
+    p-finally "^1.0.0"
+
 p-try@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/p-try/-/p-try-1.0.0.tgz#cbc79cdbaf8fd4228e13f621f2b1a237c1b207b3"
 
-p-wait-for@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/p-wait-for/-/p-wait-for-1.0.0.tgz#874dd6418abef2a1990520409a4bb6b0621f8b90"
+p-wait-for@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/p-wait-for/-/p-wait-for-2.0.0.tgz#57a0367fb2ed23fcf1cc71db78b119a2068ca0f1"
+  dependencies:
+    p-timeout "^2.0.1"
 
 parse-json@^2.2.0:
   version "2.2.0"

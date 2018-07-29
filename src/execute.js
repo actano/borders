@@ -4,17 +4,14 @@ import { TYPE_ITERATE } from './iterate-command'
 import iteratorToAsync from './iterator-to-async'
 import { TYPE_MAP } from './map-command'
 import { TYPE_PARALLEL } from './parallel-command'
-import { TYPE_PROMISE } from './promise-command'
 import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
 import { isGenerator, isString } from './utils'
-import valueType, { ARRAY, COMMAND, ITERABLE, ITERATOR, PROMISE } from './value-type'
+import valueType, { ARRAY, COMMAND, ITERABLE, ITERATOR } from './value-type'
 import yieldToEventLoop from './yield-to-event-loop'
 
 const deprecateIterable = deprecate(() => {
 }, 'yielding an iterable is deprecated, yield values directly from a generator passed to borders.iterate() instead and iterate over the results')
-const deprecatePromise = deprecate(() => {
-}, 'yielding a promise is deprecated, await the promise in an async generator instead')
 const deprecateIterator = deprecate(() => {
 }, 'yielding an iterator is deprecated, yield `iterate` or `parallel` commands instead')
 const deprecateArray = deprecate(() => {
@@ -48,9 +45,6 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
   async [COMMAND](value) {
     const { type, payload, stackFrame } = value
     assert(isString(type), 'command.type must be string')
-    if (type === TYPE_PROMISE) {
-      return payload
-    }
     if (type === TYPE_PARALLEL) {
       return withStackFrame(stackFrame, () => Promise.all(payload.map(v => this.execute(v))))
     }
@@ -79,11 +73,6 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
   async [ARRAY](value) {
     deprecateArray()
     return Promise.all(value.map(v => this.execute(v)))
-  },
-
-  async [PROMISE](value) {
-    deprecatePromise()
-    return value
   },
 
   async [ITERABLE](value) {

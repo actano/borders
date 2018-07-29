@@ -1,9 +1,8 @@
-import { isCommand, isIterable, isIterator, isPromise, isString } from './utils'
+import { isCommand, isIterable, isIterator, isString } from './utils'
 
 export const COMMAND = 'command'
 export const ITERATOR = 'iterator'
 export const ARRAY = 'array'
-export const PROMISE = 'promise'
 export const ITERABLE = 'iterable'
 
 export default (value) => {
@@ -17,10 +16,6 @@ export default (value) => {
 
   if (Array.isArray(value)) {
     return ARRAY
-  }
-
-  if (isPromise(value)) {
-    return PROMISE
   }
 
   if (isIterable(value) && !isString(value)) {

@@ -67,15 +67,6 @@ describe('borders', () => {
       }())
     })
 
-    it('should resolve yielded promises and pass them back', async () => {
-      const result = {}
-      const context = new Context()
-      await context.execute(function* test() {
-        const received = yield Promise.resolve(result)
-        expect(received).to.eq(result)
-      }())
-    })
-
     it('should not allow overriding of backend commands', () => {
       const context = new Context()
       const backend = { test() { } }

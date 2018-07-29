@@ -10,13 +10,6 @@ describe('execute/deprecated', () => {
     await expect(result).to.eventually.eql(['echo', 'literal'])
   })
 
-  it('should resolve a yielded promise and inject its value', async () => {
-    await execute(function* () {
-      const result = yield Promise.resolve('resolved')
-      expect(result).to.eql('resolved')
-    }())
-  })
-
   it('should execute elements of an iterable and return an array of results', async () => {
     const result = execute(new Set([echoCommand('1'), echoCommand('2')]))
     expect(result).to.eventually.eql(['1', '2'])

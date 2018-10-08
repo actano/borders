@@ -1,6 +1,8 @@
 import { expect } from 'chai'
 
 import Context from '../src/context'
+import runTestWithError from './run-test-with-error'
+import runWithNodeEnv from './run-with-node-env'
 
 function requireNoCache(module) {
   delete require.cache[require.resolve(module)]
@@ -8,53 +10,8 @@ function requireNoCache(module) {
   return require(module)
 }
 
-const runWithNodeEnv = (nodeEnv, fn) => () => {
-  let oldEnv
-
-  before(() => {
-    oldEnv = process.env.NODE_ENV
-    process.env.NODE_ENV = nodeEnv
-  })
-
-  fn()
-
-  after(() => {
-    process.env.NODE_ENV = oldEnv
-  })
-}
-
 describe('commandWithStackFrame', () => {
   let backendErrorStack
-
-  async function runTestWithError(commandWithStackFrame, backend, devMode) {
-    let thrownError
-
-    const createCommand = commandWithStackFrame(() => ({ type: 'test' }))
-    const command = createCommand()
-
-    const context = new Context()
-    context.use(backend)
-
-    await context.execute(function* test() {
-      try {
-        yield command
-      } catch (e) {
-        thrownError = e
-      }
-    }())
-
-    if (devMode) {
-      expect(command).to.have.property('stackFrame')
-      expect(thrownError.stack).to.equal([
-        ...backendErrorStack.split('\n'),
-        'From previous event:',
-        ...command.stackFrame.stack.split('\n').slice(1),
-      ].join('\n'))
-    } else {
-      expect(command).to.not.have.property('stackFrame')
-      expect(thrownError.stack).to.equal(backendErrorStack)
-    }
-  }
 
   async function runTestWithoutError(commandWithStackFrame, devMode) {
     const createCommand = commandWithStackFrame(() => ({ type: 'test' }))
@@ -77,7 +34,9 @@ describe('commandWithStackFrame', () => {
     }
   }
 
-  context('development environment', runWithNodeEnv('development', () => {
+  context('development environment', () => {
+    runWithNodeEnv('development')
+
     let commandWithStackFrame
 
     before(() => {
@@ -86,44 +45,21 @@ describe('commandWithStackFrame', () => {
 
     context('when backend throws error synchronously', () => {
       it('should append the stack frame of the command to the error', async () => {
-        const backend = {
-          test() {
-            const backendError = new Error()
-            backendErrorStack = backendError.stack
-            throw backendError
-          },
+        const test = (setError) => {
+          throw setError(new Error())
         }
 
-        await runTestWithError(commandWithStackFrame, backend, true)
-      })
-    })
-
-    context('when backend is a generator function', () => {
-      it('should append the stack frame of the command to the error', async () => {
-        const backend = {
-          // eslint-disable-next-line require-yield
-          * test() {
-            const backendError = new Error()
-            backendErrorStack = backendError.stack
-            throw backendError
-          },
-        }
-
-        await runTestWithError(commandWithStackFrame, backend, true)
+        await runTestWithError(test, true)
       })
     })
 
     context('when backend is async', () => {
       it('should append the stack frame of the command to the error', async () => {
-        const backend = {
-          async test() {
-            const backendError = new Error()
-            backendErrorStack = backendError.stack
-            throw backendError
-          },
+        const test = async (setError) => {
+          throw setError(new Error())
         }
 
-        await runTestWithError(commandWithStackFrame, backend, true)
+        await runTestWithError(test, true)
       })
     })
 
@@ -138,19 +74,18 @@ describe('commandWithStackFrame', () => {
         const backendError = new Error()
         backendErrorStack = backendError.stack
 
-        const backend = {
-          test() {
-            throw backendError
-          },
+        const test = (setError) => {
+          throw setError(backendError, backendErrorStack)
         }
 
-        await runTestWithError(commandWithStackFrame, backend, true)
-        await runTestWithError(commandWithStackFrame, backend, true)
+        await runTestWithError(test, true)
+        await runTestWithError(test, true)
       })
     })
-  }))
+  })
 
-  context('non-development environment', runWithNodeEnv('production', () => {
+  context('non-development environment', () => {
+    runWithNodeEnv('production')
     let commandWithStackFrame
 
     before(() => {
@@ -159,44 +94,21 @@ describe('commandWithStackFrame', () => {
 
     context('when backend throws error synchronously', () => {
       it('should append the stack frame of the command to the error', async () => {
-        const backend = {
-          test() {
-            const backendError = new Error()
-            backendErrorStack = backendError.stack
-            throw backendError
-          },
+        const test = (setError) => {
+          throw setError(new Error())
         }
 
-        await runTestWithError(commandWithStackFrame, backend, false)
-      })
-    })
-
-    context('when backend is a generator function', () => {
-      it('should append the stack frame of the command to the error', async () => {
-        const backend = {
-          // eslint-disable-next-line require-yield
-          * test() {
-            const backendError = new Error()
-            backendErrorStack = backendError.stack
-            throw backendError
-          },
-        }
-
-        await runTestWithError(commandWithStackFrame, backend, false)
+        await runTestWithError(test, false)
       })
     })
 
     context('when backend is async', () => {
       it('should append the stack frame of the command to the error', async () => {
-        const backend = {
-          async test() {
-            const backendError = new Error()
-            backendErrorStack = backendError.stack
-            throw backendError
-          },
+        const test = async (setError) => {
+          throw setError(new Error())
         }
 
-        await runTestWithError(commandWithStackFrame, backend, false)
+        await runTestWithError(test, false)
       })
     })
 
@@ -205,5 +117,5 @@ describe('commandWithStackFrame', () => {
         await runTestWithoutError(commandWithStackFrame, false)
       })
     })
-  }))
+  })
 })

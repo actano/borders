@@ -16,16 +16,8 @@ const deprecateIterator = deprecate(() => {
 }, 'yielding an iterator is deprecated, yield `iterate` or `parallel` commands instead')
 const deprecateArray = deprecate(() => {
 }, 'yielding an array is deprecated, yield `iterate` or `parallel` commands instead')
-
-const createNewId = (() => {
-  let id = 0
-
-  return () => {
-    const result = id
-    id += 1
-    return result
-  }
-})()
+const deprecateGenerator = deprecate(() => {
+}, 'implementing a command as generator is deprecated, call execute (2nd parameter) instead')
 
 function* mapCollection(self, collection, iteratee) {
   for (const item of collection) {
@@ -39,9 +31,7 @@ function* mapCollection(self, collection, iteratee) {
   }
 }
 
-const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => ({
-  id,
-  ancestors: new Set(ancestors).add(id),
+const createExecutor = commands => ({
   async [COMMAND](value) {
     const { type, payload, stackFrame } = value
     assert(isString(type), 'command.type must be string')
@@ -55,11 +45,18 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
       const { collection, iteratee } = payload
       return iteratorToAsync(mapCollection(this, collection, iteratee))
     }
-    const getId = () => this.id
-    const isDescendantOf = _id => this.ancestors.has(_id)
-    const res = withStackFrame(stackFrame, () => commands[type](payload, { getId, isDescendantOf }))
+    const execute = (_value, _commands) => {
+      const executor = _commands ? createExecutor(_commands) : this
+      return executor.execute(evaluateWithStackFrame(stackFrame, _value))
+    }
+
+    const context = Object.create(commands, {
+      execute: { value: execute },
+    })
+    const res = withStackFrame(stackFrame, () => commands[type](payload, context))
     if (isGenerator(res)) {
-      return this.execute(evaluateWithStackFrame(stackFrame, res))
+      deprecateGenerator()
+      return execute(res)
     }
 
     return res
@@ -89,15 +86,14 @@ const createExecutor = (commands, ancestors = new Set(), id = createNewId()) => 
     if (type === null) {
       throw new Error(`Cannot execute ${value}`)
     }
-    const executor = createExecutor(commands, this.ancestors)
     if (type === ITERATOR) {
-      const v = await executor.iterate(value).next()
+      const v = await this.iterate(value).next()
       if (!v.done) {
         throw new Error(`yielding literal values inside execute is not allowed: ${v.value}`)
       }
       return v.value
     }
-    return executor[type](value)
+    return this[type](value)
   },
 
   async* step(iterator, value) {

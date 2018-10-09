@@ -29,7 +29,7 @@ function* mapCollection(self, collection, iteratee) {
   }
 }
 
-const createExecutor = commands => ({
+class Executor {
   async [COMMAND](value) {
     const { type, payload, stackFrame } = value
     assert(isString(type), 'command.type must be string')
@@ -43,31 +43,24 @@ const createExecutor = commands => ({
       const { collection, iteratee } = payload
       return iteratorToAsync(mapCollection(this, collection, iteratee))
     }
-    const execute = (_value, _commands) => {
-      const executor = _commands ? createExecutor(_commands) : this
-      return executor.execute(evaluateWithStackFrame(stackFrame, _value))
-    }
 
-    const context = Object.create(commands, {
-      execute: { value: execute },
-    })
-    const res = withStackFrame(stackFrame, () => commands[type](payload, context))
+    const res = withStackFrame(stackFrame, () => this[type](payload))
     if (isGenerator(res)) {
       throw new Error('implementing a command as generator is deprecated, call execute (2nd parameter) instead')
     }
 
     return res
-  },
+  }
 
   async [ITERATOR](value) {
     deprecateIterator()
     return this.execute(value)
-  },
+  }
 
   async [ARRAY](value) {
     deprecateArray()
     return Promise.all(value.map(v => this.execute(v)))
-  },
+  }
 
   async [ITERABLE](value) {
     deprecateIterable()
@@ -76,7 +69,7 @@ const createExecutor = commands => ({
       result.push(this.execute(x))
     }
     return Promise.all(result)
-  },
+  }
 
   async execute(value) {
     const type = valueType(value)
@@ -91,7 +84,7 @@ const createExecutor = commands => ({
       return v.value
     }
     return this[type](value)
-  },
+  }
 
   async* step(iterator, value) {
     const type = valueType(value)
@@ -107,7 +100,7 @@ const createExecutor = commands => ({
       return iterator.throw(e)
     }
     return iterator.next(nextValue)
-  },
+  }
 
   async* iterate(iterator) {
     let v = await iterator.next()
@@ -115,7 +108,7 @@ const createExecutor = commands => ({
       v = yield* this.step(iterator, v.value)
     }
     return v.value
-  },
-})
+  }
+}
 
-export default commands => createExecutor(commands)
+export default Executor

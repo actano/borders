@@ -1,4 +1,4 @@
-import _execute from '../src/execute'
+import Executor from '../src/execute'
 
 export const echoCommand = payload => ({ type: 'echo', payload })
 
@@ -8,4 +8,4 @@ const echoBackend = {
   },
 }
 
-export default value => _execute(echoBackend).execute(value)
+export default value => Object.assign(new Executor(), echoBackend).execute(value)

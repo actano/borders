@@ -1,6 +1,7 @@
 import assert from 'assert'
 import { deprecate } from 'util'
-import execute from './execute'
+import Executor from './execute'
+import { evaluateWithStackFrame } from './stack-frame'
 import { isFunction } from './utils'
 
 export const CREATE_INITIAL_CONTEXT = '_CREATE_INITIAL_CONTEXT'
@@ -10,8 +11,7 @@ const deprecateInitialContext = deprecate(() => {
 
 export default class Context {
   constructor() {
-    this._commands = {}
-    this._evaluator = execute(this._commands)
+    this._commands = new Executor()
     this._id = 0
   }
 
@@ -33,23 +33,20 @@ export default class Context {
           return fn.call(this[key], payload)
         }
       }
-      return function contextCommand(payload, commandContext) {
-        const _context = Object.create(commandContext, {
-          execute: {
-            value: (value, subcontext) => {
-              if (subcontext) {
-                const _ctx = Object.create(this, {
-                  [key]: {
-                    value: subcontext,
-                  },
-                })
-                return commandContext.execute(value, _ctx)
-              }
-              return commandContext.execute(value)
-            },
-          },
-        })
-        return fn.call(this[key], payload, _context)
+      return function contextCommand(payload) {
+        const execute = (value, subcontext) => {
+          const { stackFrame } = payload
+          if (subcontext) {
+            const _ctx = Object.create(this, {
+              [key]: {
+                value: subcontext,
+              },
+            })
+            return _ctx.execute(evaluateWithStackFrame(stackFrame, value))
+          }
+          return this.execute(value)
+        }
+        return fn.call(this[key], payload, { execute })
       }
     }
 
@@ -64,6 +61,6 @@ export default class Context {
     return this
   }
   async execute(value) {
-    return this._evaluator.execute(value)
+    return this._commands.execute(value)
   }
 }

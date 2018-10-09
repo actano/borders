@@ -1,8 +1,12 @@
 import assert from 'assert'
+import { deprecate } from 'util'
 import execute from './execute'
 import { isFunction } from './utils'
 
 export const CREATE_INITIAL_CONTEXT = '_CREATE_INITIAL_CONTEXT'
+
+const deprecateInitialContext = deprecate(() => {
+}, 'using initial context is deprecated, use this with prototype to hide non-command-functions')
 
 export default class Context {
   constructor() {
@@ -12,7 +16,13 @@ export default class Context {
   }
 
   use(backend) {
-    const context = backend[CREATE_INITIAL_CONTEXT] ? backend[CREATE_INITIAL_CONTEXT]() : backend
+    let context
+    if (backend[CREATE_INITIAL_CONTEXT]) {
+      deprecateInitialContext()
+      context = backend[CREATE_INITIAL_CONTEXT]()
+    } else {
+      context = backend
+    }
     this._id += 1
     const key = `_backend.${this._id}`
     this._commands[key] = context
@@ -46,9 +56,10 @@ export default class Context {
     for (const op of Object.keys(backend)) {
       assert(!this._commands[op], `command.type ${op} already bound`)
       const fn = backend[op]
-      assert(isFunction(fn), `command.type "${op}" must be a function`)
-      assert(fn.length <= 2, `command.type "${op}" must take max two arguments (not ${fn.length})`)
-      this._commands[op] = invoker(fn)
+      if (isFunction(fn)) {
+        assert(fn.length <= 2, `command.type "${op}" must take max two arguments (not ${fn.length})`)
+        this._commands[op] = invoker(fn)
+      }
     }
     return this
   }

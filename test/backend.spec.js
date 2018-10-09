@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import Context, { CREATE_INITIAL_CONTEXT } from '../src/context'
+import Context from '../src/context'
 
 describe('backend', () => {
   const ONE_PARAM = 'oneParam'
@@ -11,14 +11,10 @@ describe('backend', () => {
 
   let backend
   let borders
-  let context
 
   beforeEach(() => {
-    context = {
-      context: 'root',
-    }
-
     backend = {
+      context: 'root',
       [ONE_PARAM](payload) {
         const args = arguments.length
         return { self: this, payload, args }
@@ -40,27 +36,16 @@ describe('backend', () => {
           root: this, child, ...result,
         }
       },
-      [CREATE_INITIAL_CONTEXT]() {
-        return context
-      },
     }
 
     borders = new Context().use(backend)
   })
 
   it('should pass backend object as this to commands without explicit context', async () => {
-    delete backend[CREATE_INITIAL_CONTEXT]
-    const { self } = await new Context().use(backend).execute(function* () {
+    const { self } = await borders.use(backend).execute(function* () {
       return yield command(ONE_PARAM)
     }())
     expect(self).to.equal(backend)
-  })
-
-  it('should pass context object as this to commands', async () => {
-    const { self } = await borders.execute(function* () {
-      return yield command(ONE_PARAM)
-    }())
-    expect(self).to.equal(context)
   })
 
   it('should pass payload as first parameter to commands', async () => {
@@ -102,14 +87,14 @@ describe('backend', () => {
     const { self } = await execute(function* () {
       return yield { type: ONE_PARAM, payload: MAGIC }
     }())
-    expect(self).to.equal(context)
+    expect(self).to.equal(backend)
   })
 
   it('should execute generator with new context', async () => {
     const { root, child, self } = await borders.execute(function* () {
       return yield command(EXECUTE)
     }())
-    expect(root).to.equal(context)
+    expect(root).to.equal(backend)
     expect(self).to.equal(child)
   })
 })

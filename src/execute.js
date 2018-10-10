@@ -37,7 +37,7 @@ class Executor {
   constructor() {
     let _id = 0
 
-    this._connect = (...backends) => {
+    const connect = (...backends) => {
       assert(backends.length > 0, 'Must provide at least one backend')
 
       const connectBackend = (backend, nextBackend) => {
@@ -66,7 +66,8 @@ class Executor {
 
               return _ctx.execute(evaluateWithStackFrame(stackFrame, value))
             }
-            const commandContext = { execute }
+            const invoke = (command, _backend = this) => this[COMMAND](command, _backend)
+            const commandContext = { execute, connect, invoke }
             if (next) {
               commandContext.next = () => next.call(this, payload)
             }
@@ -85,6 +86,8 @@ class Executor {
 
       return backends.reduceRight((prev, backend) => connectBackend(backend, prev), null)
     }
+
+    this._connect = connect
 
     this._use = (...backends) => {
       assert(backends.length > 0, 'Must provide at least one backend')

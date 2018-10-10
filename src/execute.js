@@ -1,6 +1,5 @@
 import assert from 'assert'
 import { deprecate } from 'util'
-import { CREATE_INITIAL_CONTEXT } from './context'
 import getCommands from './get-commands'
 import { TYPE_ITERATE } from './iterate-command'
 import iteratorToAsync from './iterator-to-async'
@@ -11,6 +10,8 @@ import './symbol-async-iterator'
 import { isFunction, isGenerator, isString } from './utils'
 import valueType, { ARRAY, COMMAND, ITERABLE, ITERATOR } from './value-type'
 import yieldToEventLoop from './yield-to-event-loop'
+
+export const CREATE_INITIAL_CONTEXT = '_CREATE_INITIAL_CONTEXT'
 
 const deprecateIterable = deprecate(() => {
 }, 'yielding an iterable is deprecated, yield values directly from a generator passed to borders.iterate() instead and iterate over the results')

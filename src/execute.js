@@ -47,7 +47,7 @@ class Executor {
     const { type, payload, stackFrame } = value
     assert(isString(type), 'command.type must be string')
     assert(type[0] !== '_', `command.type "${type}" must not start with _`)
-    const res = withStackFrame(stackFrame, () => this[type](payload, stackFrame))
+    const res = withStackFrame(stackFrame, () => this[type](payload))
     if (isGenerator(res) && type !== TYPE_ITERATE && type !== TYPE_MAP && type !== TYPE_PARALLEL) {
       throw new Error('implementing a command as generator is deprecated, call execute (2nd parameter) instead')
     }

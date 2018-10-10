@@ -4,7 +4,7 @@ import { TYPE_ITERATE } from './iterate-command'
 import iteratorToAsync from './iterator-to-async'
 import { TYPE_MAP } from './map-command'
 import { TYPE_PARALLEL } from './parallel-command'
-import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
+import { withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
 import { isGenerator, isString } from './utils'
 import valueType, { ARRAY, COMMAND, ITERABLE, ITERATOR } from './value-type'
@@ -30,22 +30,24 @@ function* mapCollection(self, collection, iteratee) {
 }
 
 class Executor {
+  [TYPE_PARALLEL](payload) {
+    return Promise.all(payload.map(v => this.execute(v)))
+  }
+
+  [TYPE_ITERATE](payload) {
+    return iteratorToAsync(this.iterate(payload))
+  }
+
+  [TYPE_MAP](payload) {
+    const { collection, iteratee } = payload
+    return iteratorToAsync(mapCollection(this, collection, iteratee))
+  }
+
   async [COMMAND](value) {
     const { type, payload, stackFrame } = value
     assert(isString(type), 'command.type must be string')
-    if (type === TYPE_PARALLEL) {
-      return withStackFrame(stackFrame, () => Promise.all(payload.map(v => this.execute(v))))
-    }
-    if (type === TYPE_ITERATE) {
-      return iteratorToAsync(this.iterate(evaluateWithStackFrame(stackFrame, payload)))
-    }
-    if (type === TYPE_MAP) {
-      const { collection, iteratee } = payload
-      return iteratorToAsync(mapCollection(this, collection, iteratee))
-    }
-
-    const res = withStackFrame(stackFrame, () => this[type](payload))
-    if (isGenerator(res)) {
+    const res = withStackFrame(stackFrame, () => this[type](payload, stackFrame))
+    if (isGenerator(res) && type !== TYPE_ITERATE && type !== TYPE_MAP && type !== TYPE_PARALLEL) {
       throw new Error('implementing a command as generator is deprecated, call execute (2nd parameter) instead')
     }
 

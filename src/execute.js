@@ -35,7 +35,7 @@ class Executor {
   }
 
   [TYPE_ITERATE](payload) {
-    return iteratorToAsync(this.iterate(payload))
+    return iteratorToAsync(this._iterate(payload))
   }
 
   [TYPE_MAP](payload) {
@@ -46,6 +46,7 @@ class Executor {
   async [COMMAND](value) {
     const { type, payload, stackFrame } = value
     assert(isString(type), 'command.type must be string')
+    assert(type[0] !== '_', `command.type "${type}" must not start with _`)
     const res = withStackFrame(stackFrame, () => this[type](payload, stackFrame))
     if (isGenerator(res) && type !== TYPE_ITERATE && type !== TYPE_MAP && type !== TYPE_PARALLEL) {
       throw new Error('implementing a command as generator is deprecated, call execute (2nd parameter) instead')
@@ -79,7 +80,7 @@ class Executor {
       throw new Error(`Cannot execute ${value}`)
     }
     if (type === ITERATOR) {
-      const v = await this.iterate(value).next()
+      const v = await this._iterate(value).next()
       if (!v.done) {
         throw new Error(`yielding literal values inside execute is not allowed: ${v.value}`)
       }
@@ -88,7 +89,7 @@ class Executor {
     return this[type](value)
   }
 
-  async* step(iterator, value) {
+  async* _step(iterator, value) {
     const type = valueType(value)
     let nextValue
     try {
@@ -104,10 +105,10 @@ class Executor {
     return iterator.next(nextValue)
   }
 
-  async* iterate(iterator) {
+  async* _iterate(iterator) {
     let v = await iterator.next()
     while (!v.done) {
-      v = yield* this.step(iterator, v.value)
+      v = yield* this._step(iterator, v.value)
     }
     return v.value
   }

@@ -1,9 +1,9 @@
 import { isCommand, isIterable, isIterator, isString } from './utils'
 
-export const COMMAND = 'command'
-export const ITERATOR = 'iterator'
-export const ARRAY = 'array'
-export const ITERABLE = 'iterable'
+export const COMMAND = '_command'
+export const ITERATOR = '_iterator'
+export const ARRAY = '_array'
+export const ITERABLE = '_iterable'
 
 export default (value) => {
   if (isCommand(value)) {

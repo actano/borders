@@ -9,6 +9,16 @@ export const CREATE_INITIAL_CONTEXT = '_CREATE_INITIAL_CONTEXT'
 const deprecateInitialContext = deprecate(() => {
 }, 'using initial context is deprecated, use this with prototype to hide non-command-functions')
 
+function* collectCommandNames(backend) {
+  if (backend === Object.prototype) return
+  for (const k of Object.getOwnPropertyNames(backend)) {
+    if (k[0] !== '_' && k !== 'constructor' && isFunction(backend[k])) {
+      yield k
+    }
+  }
+  yield* collectCommandNames(Object.getPrototypeOf(backend))
+}
+
 export default class Context {
   constructor() {
     this._commands = new Executor()
@@ -17,7 +27,7 @@ export default class Context {
 
   use(...backends) {
     assert(backends.length > 0, 'Must provide at least one backend')
-    const commands = Object.keys(backends[0]).filter(op => isFunction(backends[0][op]))
+    const commands = Array.from(new Set(collectCommandNames(backends[0])))
     assert(commands.filter(op => this._commands[op]).length === 0, `Commands already bound: ${commands.filter(op => this._commands[op]).join(', ')}`)
 
     const backendData = backends.map((backend) => {
@@ -61,7 +71,7 @@ export default class Context {
     for (const op of commands) {
       this._commands[op] = backendData.reduceRight((previousValue, { backend, invoker }) => {
         const fn = backend[op]
-        if (!Object.prototype.hasOwnProperty.call(backend, op)) return null
+        if (!fn) return null
         assert(isFunction(fn), `command.type "${op}" must be a function`)
         assert(fn.length <= 2, `command.type "${op}" must take max two arguments (not ${fn.length})`)
         return invoker(fn, previousValue)

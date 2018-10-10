@@ -16,8 +16,6 @@ const deprecateIterator = deprecate(() => {
 }, 'yielding an iterator is deprecated, yield `iterate` or `parallel` commands instead')
 const deprecateArray = deprecate(() => {
 }, 'yielding an array is deprecated, yield `iterate` or `parallel` commands instead')
-const deprecateGenerator = deprecate(() => {
-}, 'implementing a command as generator is deprecated, call execute (2nd parameter) instead')
 
 function* mapCollection(self, collection, iteratee) {
   for (const item of collection) {
@@ -55,8 +53,7 @@ const createExecutor = commands => ({
     })
     const res = withStackFrame(stackFrame, () => commands[type](payload, context))
     if (isGenerator(res)) {
-      deprecateGenerator()
-      return execute(res)
+      throw new Error('implementing a command as generator is deprecated, call execute (2nd parameter) instead')
     }
 
     return res

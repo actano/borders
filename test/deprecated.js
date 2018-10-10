@@ -3,8 +3,6 @@ import chaiAsPromised from 'chai-as-promised'
 import waitFor from 'p-wait-for'
 import Context from '../src/context'
 import execute, { echoCommand } from './_execute'
-import runTestWithError from './run-test-with-error'
-import runWithNodeEnv from './run-with-node-env'
 
 const { expect } = chai.use(chaiAsPromised)
 
@@ -127,44 +125,6 @@ describe('execute/deprecated', () => {
         expectIterable(result)
           .toIterateOver([101, 102])
       }())
-    })
-  })
-
-  it('should run backends with generator functions', async () => {
-    const context = new Context()
-    const backend = {
-      * testGenerator({ id }) {
-        return yield { type: 'test', payload: { value: id } }
-      },
-      test({ value }) {
-        return value
-      },
-    }
-    context.use(backend)
-
-    const result = await context.execute(function* () {
-      return yield { type: 'testGenerator', payload: { id: 42 } }
-    }())
-
-    expect(result).to.equal(42)
-  })
-
-  // eslint-disable-next-line require-yield
-  function* generatorCommandWithError(setError) {
-    throw setError(new Error())
-  }
-
-  context('command returning generator in development mode', () => {
-    runWithNodeEnv('development')
-    it('should append the stack frame of the command to the error', async () => {
-      await runTestWithError(generatorCommandWithError, true)
-    })
-  })
-
-  context('command returning generator in production mode', () => {
-    runWithNodeEnv('production')
-    it('should not append the stack frame of the command', async () => {
-      await runTestWithError(generatorCommandWithError, false)
     })
   })
 })

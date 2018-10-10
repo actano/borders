@@ -24,12 +24,14 @@ describe('backend', () => {
       },
       async [TWO_PARAM](payload, commandContext) {
         const args = arguments.length
-        const { execute, subcontext } = payload
+        const { execute, subcontext, next } = payload
         const result = {
           self: this, payload, commandContext, args,
         }
 
-        if (execute) {
+        if (next && commandContext.next) {
+          result.result = await commandContext.next()
+        } else if (execute) {
           if (subcontext) {
             result.child = Object.assign(Object.create(this), { context: 'child' })
             result.result = await commandContext.execute(execute(), result.child)
@@ -103,33 +105,63 @@ describe('backend', () => {
   })
 
   describe('multiple backends', () => {
+    const FRONT_ONLY = 'FRONT_ONLY'
     let frontBackend
 
     beforeEach('create front backend', () => {
-      frontBackend = {
-        context: 'root',
-        [ONE_PARAM](payload) {
-          const args = arguments.length
-          return { self: this, payload, args }
-        },
-        [TWO_PARAM](payload, commandContext) {
-          const args = arguments.length
-          return {
-            self: this, payload, commandContext, args,
-          }
-        },
-      }
+      frontBackend = Object.assign({}, backend, { context: 'front', FRONT_ONLY: backend[TWO_PARAM] })
     })
 
     beforeEach('create multiple backends context', () => {
       borders = new Context().use(frontBackend, backend)
     })
 
-    it('should provide a next function for chaining backends')
-    it('should not provide a `next` function for simple commands')
-    it('should not provide a `next` function if the command does not exist in the next backend')
-    it('should call next command with correct context')
-    it('should allow creating a subcontext from the first backend')
-    it('should allow creating a subcontext from the next backend')
+    it('should provide a next function for chaining backends', async () => {
+      const { commandContext } = await executeCommand(TWO_PARAM)
+      expect(commandContext).to.respondTo('next')
+      const { next } = commandContext
+      expect(next).to.have.lengthOf(0)
+    })
+
+    it('should not provide a `next` function for simple commands', async () => {
+      const { args } = await executeCommand(ONE_PARAM)
+      expect(args).to.equal(1)
+    })
+
+    it('should not provide a `next` function if the command does not exist in the next backend', async () => {
+      const { commandContext } = await executeCommand(FRONT_ONLY)
+      expect(commandContext).to.not.respondTo('next')
+    })
+
+    it('should call next command with correct context', async () => {
+      const { self, result } = await executeCommand(TWO_PARAM, { next: true })
+      expect(self).to.equal(frontBackend)
+      expect(result.self).to.equal(backend)
+    })
+
+    it('should allow creating a subcontext from the first backend', async () => {
+      const { self, child, result } = await executeCommand(TWO_PARAM, {
+        subcontext: true,
+        * execute() {
+          return yield command(TWO_PARAM, { next: true })
+        },
+      })
+      expect(self).to.equal(frontBackend)
+      expect(result.self).to.equal(child)
+    })
+
+    it('should allow creating a subcontext from the next backend', async () => {
+      const { self, result } = await executeCommand(TWO_PARAM, {
+        next: true,
+        subcontext: true,
+        * execute() {
+          return yield command(TWO_PARAM, { next: true })
+        },
+      })
+      expect(self, 'first backend of call').to.equal(frontBackend)
+      expect(result.self, 'second backend of call').to.equal(backend)
+      expect(result.result.self, 'first backend of subcontext call').to.equal(frontBackend)
+      expect(result.result.result.self, 'second backend of subcontext call').to.equal(result.child)
+    })
   })
 })

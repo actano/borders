@@ -15,48 +15,57 @@ export default class Context {
     this._id = 0
   }
 
-  use(backend) {
-    let context
-    if (backend[CREATE_INITIAL_CONTEXT]) {
-      deprecateInitialContext()
-      context = backend[CREATE_INITIAL_CONTEXT]()
-    } else {
-      context = backend
-    }
-    this._id += 1
-    const key = `_backend.${this._id}`
-    this._commands[key] = context
+  use(...backends) {
+    assert(backends.length > 0, 'Must provide at least one backend')
+    const commands = Object.keys(backends[0]).filter(op => isFunction(backends[0][op]))
+    assert(commands.filter(op => this._commands[op]).length === 0, `Commands already bound: ${commands.filter(op => this._commands[op]).join(', ')}`)
 
-    const invoker = (fn) => {
-      if (fn.length === 1) {
-        return function directCommand(payload) {
-          return fn.call(this[key], payload)
-        }
+    const backendData = backends.map((backend) => {
+      let context
+      if (backend[CREATE_INITIAL_CONTEXT]) {
+        deprecateInitialContext()
+        context = backend[CREATE_INITIAL_CONTEXT]()
+      } else {
+        context = backend
       }
-      return function contextCommand(payload) {
-        const execute = (value, subcontext) => {
-          const { stackFrame } = payload
-          if (subcontext) {
-            const _ctx = Object.create(this, {
-              [key]: {
-                value: subcontext,
-              },
-            })
+      this._id += 1
+      const key = `_backend.${this._id}`
+      this._commands[key] = context
+      const invoker = (fn, next) => {
+        if (fn.length === 1) {
+          return function directCommand(payload) {
+            return fn.call(this[key], payload)
+          }
+        }
+        return function contextCommand(payload) {
+          const execute = (value, subcontext) => {
+            const { stackFrame } = payload
+            const _ctx = subcontext
+              ? Object.create(this, { [key]: { value: subcontext } })
+              : this
+
             return _ctx.execute(evaluateWithStackFrame(stackFrame, value))
           }
-          return this.execute(value)
+          const commandContext = { execute }
+          if (next) {
+            commandContext.next = () => next.call(this, payload)
+          }
+          return fn.call(this[key], payload, commandContext)
         }
-        return fn.call(this[key], payload, { execute })
       }
-    }
 
-    for (const op of Object.keys(backend)) {
-      assert(!this._commands[op], `command.type ${op} already bound`)
-      const fn = backend[op]
-      if (isFunction(fn)) {
+      return { backend, invoker }
+    })
+
+
+    for (const op of commands) {
+      this._commands[op] = backendData.reduceRight((previousValue, { backend, invoker }) => {
+        const fn = backend[op]
+        if (!Object.prototype.hasOwnProperty.call(backend, op)) return null
+        assert(isFunction(fn), `command.type "${op}" must be a function`)
         assert(fn.length <= 2, `command.type "${op}" must take max two arguments (not ${fn.length})`)
-        this._commands[op] = invoker(fn)
-      }
+        return invoker(fn, previousValue)
+      }, null)
     }
     return this
   }

@@ -15,7 +15,7 @@ describe('backend', () => {
     return yield command(type, payload)
   }())
 
-  beforeEach(() => {
+  beforeEach('create backend', () => {
     backend = {
       context: 'root',
       [ONE_PARAM](payload) {
@@ -40,61 +40,96 @@ describe('backend', () => {
         return result
       },
     }
-
-    borders = new Context().use(backend)
   })
 
-  it('should pass backend object as this to commands without explicit context', async () => {
-    const { self } = await executeCommand(ONE_PARAM)
-    expect(self).to.equal(backend)
-  })
-
-  it('should pass payload as first parameter to commands', async () => {
-    const { payload } = await executeCommand(ONE_PARAM)
-
-    expect(payload).to.equal(MAGIC)
-  })
-
-  it('should pass one parameter to commands with one parameter', async () => {
-    const { args } = await executeCommand(ONE_PARAM)
-
-    expect(args).to.equal(1)
-  })
-
-  it('should pass context as second parameter to commands with two parameters', async () => {
-    const { args, commandContext } = await executeCommand(TWO_PARAM)
-
-    expect(args).to.equal(2)
-    expect(commandContext).to.be.an('object')
-  })
-
-  it('should pass an execute function taking to parameter as part of context', async () => {
-    const { commandContext } = await executeCommand(TWO_PARAM)
-
-    expect(commandContext).to.respondTo('execute')
-    const { execute } = commandContext
-    expect(execute).to.have.lengthOf(2)
-  })
-
-  it('should execute generator with same context', async () => {
-    const { result } = await executeCommand(TWO_PARAM, {
-      * execute() {
-        return yield command(ONE_PARAM)
-      },
+  describe('single backend', () => {
+    beforeEach('create single backend context', () => {
+      borders = new Context().use(backend)
     })
 
-    const { self } = result
-    expect(self).to.equal(backend)
+    it('should pass backend object as this to commands without explicit context', async () => {
+      const { self } = await executeCommand(ONE_PARAM)
+      expect(self).to.equal(backend)
+    })
+
+    it('should pass payload as first parameter to commands', async () => {
+      const { payload } = await executeCommand(ONE_PARAM)
+
+      expect(payload).to.equal(MAGIC)
+    })
+
+    it('should pass one parameter to commands with one parameter', async () => {
+      const { args } = await executeCommand(ONE_PARAM)
+
+      expect(args).to.equal(1)
+    })
+
+    it('should pass context as second parameter to commands with two parameters', async () => {
+      const { args, commandContext } = await executeCommand(TWO_PARAM)
+
+      expect(args).to.equal(2)
+      expect(commandContext).to.be.an('object')
+    })
+
+    it('should pass an execute function taking to parameter as part of context', async () => {
+      const { commandContext } = await executeCommand(TWO_PARAM)
+
+      expect(commandContext).to.respondTo('execute')
+      const { execute } = commandContext
+      expect(execute).to.have.lengthOf(2)
+    })
+
+    it('should execute generator with same context', async () => {
+      const { result } = await executeCommand(TWO_PARAM, {
+        * execute() {
+          return yield command(ONE_PARAM)
+        },
+      })
+
+      const { self } = result
+      expect(self).to.equal(backend)
+    })
+
+    it('should execute generator with new context', async () => {
+      const { self, child, result } = await executeCommand(TWO_PARAM, {
+        subcontext: true,
+        * execute() {
+          return yield command(ONE_PARAM)
+        },
+      })
+      expect(self).to.equal(backend)
+      expect(result.self).to.equal(child)
+    })
   })
 
-  it('should execute generator with new context', async () => {
-    const { self, child, result } = await executeCommand(TWO_PARAM, {
-      subcontext: true,
-      * execute() {
-        return yield command(ONE_PARAM)
-      },
+  describe('multiple backends', () => {
+    let frontBackend
+
+    beforeEach('create front backend', () => {
+      frontBackend = {
+        context: 'root',
+        [ONE_PARAM](payload) {
+          const args = arguments.length
+          return { self: this, payload, args }
+        },
+        [TWO_PARAM](payload, commandContext) {
+          const args = arguments.length
+          return {
+            self: this, payload, commandContext, args,
+          }
+        },
+      }
     })
-    expect(self).to.equal(backend)
-    expect(result.self).to.equal(child)
+
+    beforeEach('create multiple backends context', () => {
+      borders = new Context().use(frontBackend, backend)
+    })
+
+    it('should provide a next function for chaining backends')
+    it('should not provide a `next` function for simple commands')
+    it('should not provide a `next` function if the command does not exist in the next backend')
+    it('should call next command with correct context')
+    it('should allow creating a subcontext from the first backend')
+    it('should allow creating a subcontext from the next backend')
   })
 })

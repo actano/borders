@@ -2,22 +2,13 @@ import assert from 'assert'
 import { deprecate } from 'util'
 import Executor from './execute'
 import { evaluateWithStackFrame } from './stack-frame'
+import getCommands from './get-commands'
 import { isFunction } from './utils'
 
 export const CREATE_INITIAL_CONTEXT = '_CREATE_INITIAL_CONTEXT'
 
 const deprecateInitialContext = deprecate(() => {
 }, 'using initial context is deprecated, use this with prototype to hide non-command-functions')
-
-function* collectCommandNames(backend) {
-  if (backend === Object.prototype) return
-  for (const k of Object.getOwnPropertyNames(backend)) {
-    if (k[0] !== '_' && k !== 'constructor' && isFunction(backend[k])) {
-      yield k
-    }
-  }
-  yield* collectCommandNames(Object.getPrototypeOf(backend))
-}
 
 export default class Context {
   constructor() {
@@ -27,7 +18,7 @@ export default class Context {
 
   use(...backends) {
     assert(backends.length > 0, 'Must provide at least one backend')
-    const commands = Array.from(new Set(collectCommandNames(backends[0])))
+    const commands = getCommands(backends[0])
     assert(commands.filter(op => this._commands[op]).length === 0, `Commands already bound: ${commands.filter(op => this._commands[op]).join(', ')}`)
 
     const backendData = backends.map((backend) => {

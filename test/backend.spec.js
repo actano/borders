@@ -4,7 +4,6 @@ import Context from '../src/context'
 describe('backend', () => {
   const ONE_PARAM = 'oneParam'
   const TWO_PARAM = 'twoParam'
-  const EXECUTE = 'execute'
   const MAGIC = 'payload'
 
   const command = (type, payload = MAGIC) => ({ type, payload })
@@ -23,22 +22,22 @@ describe('backend', () => {
         const args = arguments.length
         return { self: this, payload, args }
       },
-      [TWO_PARAM](payload, commandContext) {
+      async [TWO_PARAM](payload, commandContext) {
         const args = arguments.length
-        return {
+        const { execute, subcontext } = payload
+        const result = {
           self: this, payload, commandContext, args,
         }
-      },
-      async [EXECUTE](payload, commandContext) {
-        const { execute } = commandContext
-        const child = Object.create(this)
-        child.context = 'child'
-        const result = await execute((function* () {
-          return yield { type: ONE_PARAM, payload }
-        }()), child)
-        return {
-          root: this, child, ...result,
+
+        if (execute) {
+          if (subcontext) {
+            result.child = Object.assign(Object.create(this), { context: 'child' })
+            result.result = await commandContext.execute(execute(), result.child)
+          } else {
+            result.result = await commandContext.execute(execute())
+          }
         }
+        return result
       },
     }
 
@@ -78,19 +77,24 @@ describe('backend', () => {
   })
 
   it('should execute generator with same context', async () => {
-    const { commandContext } = await executeCommand(TWO_PARAM)
+    const { result } = await executeCommand(TWO_PARAM, {
+      * execute() {
+        return yield command(ONE_PARAM)
+      },
+    })
 
-    const { execute } = commandContext
-    const { self } = await execute(function* () {
-      return yield { type: ONE_PARAM, payload: MAGIC }
-    }())
+    const { self } = result
     expect(self).to.equal(backend)
   })
 
   it('should execute generator with new context', async () => {
-    const { root, child, self } = await executeCommand(EXECUTE)
-
-    expect(root).to.equal(backend)
-    expect(self).to.equal(child)
+    const { self, child, result } = await executeCommand(TWO_PARAM, {
+      subcontext: true,
+      * execute() {
+        return yield command(ONE_PARAM)
+      },
+    })
+    expect(self).to.equal(backend)
+    expect(result.self).to.equal(child)
   })
 })

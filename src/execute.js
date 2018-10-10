@@ -8,7 +8,7 @@ import { TYPE_MAP } from './map-command'
 import { TYPE_PARALLEL } from './parallel-command'
 import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
-import { isGenerator, isString } from './utils'
+import { isFunction, isGenerator, isString } from './utils'
 import valueType, { ARRAY, COMMAND, ITERABLE, ITERATOR } from './value-type'
 import yieldToEventLoop from './yield-to-event-loop'
 
@@ -66,7 +66,7 @@ class Executor {
 
               return _ctx.execute(evaluateWithStackFrame(stackFrame, value))
             }
-            const invoke = (command, _backend = this) => this[COMMAND](command, _backend)
+            const invoke = (command, _backend) => this[COMMAND](command, _backend)
             const commandContext = { execute, connect, invoke }
             if (next) {
               commandContext.next = () => next.call(this, payload)
@@ -110,11 +110,13 @@ class Executor {
     return iteratorToAsync(mapCollection(this, collection, iteratee))
   }
 
-  async [COMMAND](value, backend = this) {
+  async [COMMAND](value, backend) {
     const { type, payload, stackFrame } = value
     assert(isString(type), 'command.type must be string')
     assert(type[0] !== '_', `command.type "${type}" must not start with _`)
-    const res = withStackFrame(stackFrame, () => backend[type].call(this, payload))
+    const fn = backend ? backend[type] : this[type]
+    assert(isFunction(fn), `command.type "${type}" is not a function`)
+    const res = withStackFrame(stackFrame, () => fn.call(this, payload))
     if (isGenerator(res) && type !== TYPE_ITERATE && type !== TYPE_MAP && type !== TYPE_PARALLEL) {
       throw new Error('implementing a command as generator is deprecated, call execute (2nd parameter) instead')
     }

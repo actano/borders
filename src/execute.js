@@ -1,5 +1,4 @@
 import assert from 'assert'
-import { deprecate } from 'util'
 import getCommands from './get-commands'
 import { TYPE_ITERATE } from './iterate-command'
 import iteratorToAsync from './iterator-to-async'
@@ -8,18 +7,14 @@ import { TYPE_PARALLEL } from './parallel-command'
 import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
 import { isFunction, isGenerator, isString } from './utils'
-import valueType, { COMMAND, ITERATOR } from './value-type'
+import valueType, { COMMAND } from './value-type'
 import yieldToEventLoop from './yield-to-event-loop'
-
-const deprecateIterator = deprecate(() => {
-  // throw new Error()
-}, 'yielding an iterator is deprecated, yield `iterate` or `parallel` commands instead')
 
 function* mapCollection(self, collection, iteratee) {
   for (const item of collection) {
     const value = iteratee(item)
     const type = valueType(value)
-    if (type === COMMAND || type === ITERATOR) {
+    if (type === COMMAND) {
       yield self.execute(value)
     } else {
       yield value
@@ -111,22 +106,18 @@ class Executor {
     return res
   }
 
-  async [ITERATOR](value) {
-    deprecateIterator()
-    return this.execute(value)
-  }
-
   async execute(value) {
-    const type = valueType(value)
-    if (type === null) {
-      throw new Error(`Cannot execute ${value}`)
-    }
-    if (type === ITERATOR) {
+    if (isGenerator(value)) {
       const v = await this._iterate(value).next()
       if (!v.done) {
         throw new Error(`yielding literal values inside execute is not allowed: ${v.value}`)
       }
       return v.value
+    }
+
+    const type = valueType(value)
+    if (type === null) {
+      throw new Error(`Cannot execute ${value}`)
     }
     return this[type](value)
   }

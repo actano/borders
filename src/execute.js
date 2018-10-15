@@ -11,16 +11,12 @@ import { isFunction, isGenerator, isString } from './utils'
 import valueType, { ARRAY, COMMAND, ITERABLE, ITERATOR } from './value-type'
 import yieldToEventLoop from './yield-to-event-loop'
 
-export const CREATE_INITIAL_CONTEXT = '_CREATE_INITIAL_CONTEXT'
-
 const deprecateIterable = deprecate(() => {
 }, 'yielding an iterable is deprecated, yield values directly from a generator passed to borders.iterate() instead and iterate over the results')
 const deprecateIterator = deprecate(() => {
 }, 'yielding an iterator is deprecated, yield `iterate` or `parallel` commands instead')
 const deprecateArray = deprecate(() => {
 }, 'yielding an array is deprecated, yield `iterate` or `parallel` commands instead')
-const deprecateInitialContext = deprecate(() => {
-}, 'using initial context is deprecated, use this with prototype to hide non-command-functions')
 
 function* mapCollection(self, collection, iteratee) {
   for (const item of collection) {
@@ -42,16 +38,9 @@ class Executor {
       assert(backends.length > 0, 'Must provide at least one backend')
 
       const connectBackend = (backend, nextBackend) => {
-        let context
-        if (backend[CREATE_INITIAL_CONTEXT]) {
-          deprecateInitialContext()
-          context = backend[CREATE_INITIAL_CONTEXT]()
-        } else {
-          context = backend
-        }
         _id += 1
         const key = `_backend.${_id}`
-        this[key] = context
+        this[key] = backend
         const invoker = (fn, next) => {
           if (fn.length === 1) {
             return function directCommand(payload) {

@@ -8,14 +8,14 @@ import { TYPE_PARALLEL } from './parallel-command'
 import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
 import { isFunction, isGenerator, isString } from './utils'
-import valueType, { ARRAY, COMMAND, ITERABLE, ITERATOR } from './value-type'
+import valueType, { ARRAY, COMMAND, ITERATOR } from './value-type'
 import yieldToEventLoop from './yield-to-event-loop'
 
-const deprecateIterable = deprecate(() => {
-}, 'yielding an iterable is deprecated, yield values directly from a generator passed to borders.iterate() instead and iterate over the results')
 const deprecateIterator = deprecate(() => {
+  // throw new Error()
 }, 'yielding an iterator is deprecated, yield `iterate` or `parallel` commands instead')
 const deprecateArray = deprecate(() => {
+  // throw new Error()
 }, 'yielding an array is deprecated, yield `iterate` or `parallel` commands instead')
 
 function* mapCollection(self, collection, iteratee) {
@@ -122,15 +122,6 @@ class Executor {
   async [ARRAY](value) {
     deprecateArray()
     return Promise.all(value.map(v => this.execute(v)))
-  }
-
-  async [ITERABLE](value) {
-    deprecateIterable()
-    const result = []
-    for (const x of value) {
-      result.push(this.execute(x))
-    }
-    return Promise.all(result)
   }
 
   async execute(value) {

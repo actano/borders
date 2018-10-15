@@ -6,15 +6,13 @@ import { TYPE_MAP } from './map-command'
 import { TYPE_PARALLEL } from './parallel-command'
 import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
-import { isFunction, isGenerator, isString } from './utils'
-import valueType, { COMMAND } from './value-type'
+import { isCommand, isFunction, isGenerator, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 
 function* mapCollection(self, collection, iteratee) {
   for (const item of collection) {
     const value = iteratee(item)
-    const type = valueType(value)
-    if (type === COMMAND) {
+    if (isCommand(value) || isGenerator(value)) {
       yield self.execute(value)
     } else {
       yield value
@@ -48,7 +46,7 @@ class Executor {
 
               return _ctx.execute(evaluateWithStackFrame(stackFrame, value))
             }
-            const invoke = (command, _backend) => this[COMMAND](command, _backend)
+            const invoke = (command, _backend) => this._command(command, _backend)
             const commandContext = { execute, connect, invoke }
             if (next) {
               commandContext.next = () => next.call(this, payload)
@@ -92,7 +90,7 @@ class Executor {
     return iteratorToAsync(mapCollection(this, collection, iteratee))
   }
 
-  async [COMMAND](value, backend) {
+  async _command(value, backend) {
     const { type, payload, stackFrame } = value
     assert(isString(type), 'command.type must be string')
     assert(type[0] !== '_', `command.type "${type}" must not start with _`)
@@ -113,23 +111,19 @@ class Executor {
         throw new Error(`yielding literal values inside execute is not allowed: ${v.value}`)
       }
       return v.value
+    } else if (isCommand(value)) {
+      return this._command(value)
     }
-
-    const type = valueType(value)
-    if (type === null) {
-      throw new Error(`Cannot execute ${value}`)
-    }
-    return this[type](value)
+    throw new Error(`Cannot execute ${value}`)
   }
 
   async* _step(iterator, value) {
-    const type = valueType(value)
     let nextValue
     try {
-      if (type === null) {
-        nextValue = yield value
+      if (isCommand(value)) {
+        nextValue = await this._command(value)
       } else {
-        nextValue = await this[type](value)
+        nextValue = yield value
       }
       await yieldToEventLoop()
     } catch (e) {

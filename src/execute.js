@@ -10,6 +10,8 @@ import './symbol-async-iterator'
 import { isCommand, isFunction, isGenerator, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 
+const deprecateConnect = deprecate(() => {}, 'connect is deprecated. use execute with backend property as callback function instead')
+
 class Executor {
   constructor() {
     let _id = 0
@@ -34,12 +36,23 @@ class Executor {
                 ? Object.create(this, { [key]: { value: subcontext } })
                 : this
               if (isCommand(value)) {
-                return _ctx._command(value, value.backend)
+                let _backend = value.backend
+                if (isFunction(_backend)) {
+                  _backend = _backend(connect)
+                }
+                return _ctx._command(value, _backend)
               }
               return _ctx.execute(evaluateWithStackFrame(stackFrame, value))
             }
             const invoke = deprecate((command, _backend) => this._command(command, _backend), '`invoke` is deprecated: use `execute` with `backend` property instead')
-            const commandContext = { execute, connect, invoke }
+            const commandContext = {
+              execute,
+              connect(..._backends) {
+                deprecateConnect()
+                return connect(..._backends)
+              },
+              invoke,
+            }
             if (next) {
               commandContext.next = () => next.call(this, payload)
             }

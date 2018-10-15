@@ -1,4 +1,5 @@
 import assert from 'assert'
+import { deprecate } from 'util'
 import getCommands from './get-commands'
 import { TYPE_ITERATE } from './iterate-command'
 import iteratorToAsync from './iterator-to-async'
@@ -32,10 +33,12 @@ class Executor {
               const _ctx = subcontext
                 ? Object.create(this, { [key]: { value: subcontext } })
                 : this
-
+              if (isCommand(value)) {
+                return _ctx._command(value, value.backend)
+              }
               return _ctx.execute(evaluateWithStackFrame(stackFrame, value))
             }
-            const invoke = (command, _backend) => this._command(command, _backend)
+            const invoke = deprecate((command, _backend) => this._command(command, _backend), '`invoke` is deprecated: use `execute` with `backend` property instead')
             const commandContext = { execute, connect, invoke }
             if (next) {
               commandContext.next = () => next.call(this, payload)

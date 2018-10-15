@@ -1,6 +1,6 @@
 import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import execute from './_execute'
+import execute, { echoCommand } from './_execute'
 import map from '../src/map-command'
 
 const { expect } = chai.use(chaiAsPromised)
@@ -17,7 +17,7 @@ describe('execute/map', () => {
   it('should apply iteratee to collection and return results', async () => {
     await execute(async function* () {
       const results = ['item_2', 'item_4', 'item_6']
-      const asyncIterator = yield map([1, 2, 3], value => `item_${value * 2}`)
+      const asyncIterator = yield map([1, 2, 3], value => echoCommand(`item_${value * 2}`))
       let i = 0
       for await (const result of asyncIterator) {
         expect(result).to.eq(results[i])
@@ -46,7 +46,7 @@ describe('execute/map', () => {
 
     await execute(async function* () {
       const collection = [true, true, true, false]
-      const fn = value => (value ? addPending() : resolve())
+      const fn = value => echoCommand(value ? addPending() : resolve())
       const asyncIterator = yield map(collection, fn)
       // expect to iterate over the number of queued pending promises
       // if resolve() wouldn't have been called, all promises would have been resolved by 'later'
@@ -68,7 +68,7 @@ describe('execute/map', () => {
       let callCount = 0
       const fn = (v) => {
         callCount += 1
-        return v
+        return echoCommand(v)
       }
 
       const asyncIterator = yield map(collection, fn)

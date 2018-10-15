@@ -9,17 +9,6 @@ import './symbol-async-iterator'
 import { isCommand, isFunction, isGenerator, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 
-function* mapCollection(self, collection, iteratee) {
-  for (const item of collection) {
-    const value = iteratee(item)
-    if (isCommand(value) || isGenerator(value)) {
-      yield self.execute(value)
-    } else {
-      yield value
-    }
-  }
-}
-
 class Executor {
   constructor() {
     let _id = 0
@@ -87,7 +76,14 @@ class Executor {
 
   [TYPE_MAP](payload) {
     const { collection, iteratee } = payload
-    return iteratorToAsync(mapCollection(this, collection, iteratee))
+
+    function* mapCollection() {
+      for (const item of collection) {
+        yield this.execute(iteratee(item))
+      }
+    }
+
+    return iteratorToAsync(mapCollection.call(this))
   }
 
   async _command(value, backend) {

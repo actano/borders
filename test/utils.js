@@ -1,26 +1,9 @@
 import Bluebird from 'bluebird'
 import thenify from 'thenify'
 import { expect } from 'chai'
-import { isPromise, isGenerator } from '../src/utils'
+import { isPromise } from '../src/utils'
 
 describe('utils', () => {
-  describe('isGenerator', () => {
-    it('should detect a generator', () => {
-      const fn = function* () { yield null }
-      expect(isGenerator(fn())).to.eq(true)
-    })
-
-    it('should detect an async generator', () => {
-      const fn = async function* () { yield null }
-      expect(isGenerator(fn())).to.eq(true)
-    })
-
-    it('should not detect an iterator', () => {
-      const iterator = [][Symbol.iterator]()
-      expect(isGenerator(iterator)).to.eq(false)
-    })
-  })
-
   describe('promise', () => {
     it('should detect a native resolved promise', () => {
       const p = Promise.resolve()

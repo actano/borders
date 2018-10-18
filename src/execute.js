@@ -7,7 +7,7 @@ import { TYPE_MAP } from './commands/map'
 import { TYPE_PARALLEL } from './commands/parallel'
 import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
-import { isCommand, isFunction, isGenerator, isString } from './utils'
+import { isCommand, isFunction, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 
 const deprecateConnect = deprecate(() => {}, 'connect is deprecated. use execute with backend property as callback function instead')
@@ -108,25 +108,18 @@ class Executor {
     assert(type[0] !== '_', `command.type "${type}" must not start with _`)
     const fn = backend ? backend[type] : this[type]
     assert(isFunction(fn), `command.type "${type}" is not a function`)
-    const res = withStackFrame(stackFrame, () => fn.call(this, payload))
-    if (isGenerator(res) && type !== TYPE_ITERATE && type !== TYPE_MAP && type !== TYPE_PARALLEL) {
-      throw new Error('implementing a command as generator is deprecated, call execute (2nd parameter) instead')
-    }
-
-    return res
+    return withStackFrame(stackFrame, () => fn.call(this, payload))
   }
 
   async execute(value) {
-    if (isGenerator(value)) {
-      const v = await this._iterate(value).next()
-      if (!v.done) {
-        throw new Error(`yielding literal values inside execute is not allowed: ${v.value}`)
-      }
-      return v.value
-    } else if (isCommand(value)) {
+    if (isCommand(value)) {
       return this._command(value)
     }
-    throw new Error(`Cannot execute ${value}`)
+    const v = await this._iterate(value).next()
+    if (!v.done) {
+      throw new Error(`yielding literal values inside execute is not allowed: ${v.value}`)
+    }
+    return v.value
   }
 
   async* _step(iterator, value) {

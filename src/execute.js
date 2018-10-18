@@ -30,15 +30,15 @@ class Executor {
             }
           }
           return function contextCommand(payload) {
-            const execute = (value, subcontext) => {
+            const execute = async (value, subcontext) => {
               const { stackFrame } = payload
               const _ctx = subcontext
                 ? Object.create(this, { [key]: { value: subcontext } })
                 : this
               if (isCommand(value)) {
-                let _backend = value.backend
+                let _backend = await value.backend
                 if (isFunction(_backend)) {
-                  _backend = _backend(connect)
+                  _backend = await _backend(connect)
                 }
                 return _ctx._command(value, _backend)
               }

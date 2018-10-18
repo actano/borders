@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import sinon from 'sinon'
-import getCommands from '../src/get-commands'
+import getCommands from '../src/backends/get-commands'
 
 import { multiplex } from '../src/backends'
 import Context from '../src/context'

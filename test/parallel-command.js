@@ -1,7 +1,7 @@
 import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import execute, { echoCommand } from './_execute'
-import parallel from '../src/parallel-command'
+import parallel from '../src/commands/parallel'
 
 const { expect } = chai.use(chaiAsPromised)
 

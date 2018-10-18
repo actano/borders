@@ -1,6 +1,6 @@
 import { deprecate } from 'util'
 import multiplex from './multiplex'
-import getCommands from '../get-commands'
+import getCommands from './get-commands'
 
 const deprecateCommandMultiplex = deprecate(() => {}, 'Use separate `.use()` calls or merge backends together')
 

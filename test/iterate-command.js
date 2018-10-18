@@ -1,7 +1,7 @@
 import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import execute, { echoCommand } from './_execute'
-import iterate from '../src/iterate-command'
+import iterate from '../src/commands/iterate'
 
 const { expect } = chai.use(chaiAsPromised)
 

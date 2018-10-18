@@ -1,7 +1,7 @@
 import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import execute, { echoCommand } from './_execute'
-import map from '../src/map-command'
+import map from '../src/commands/map'
 
 const { expect } = chai.use(chaiAsPromised)
 

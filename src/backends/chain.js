@@ -1,4 +1,4 @@
-import getCommands from '../get-commands'
+import getCommands from './get-commands'
 
 export default class ChainBackend {
   constructor(...backends) {

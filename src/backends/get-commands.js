@@ -1,4 +1,4 @@
-import { isFunction } from './utils'
+import { isFunction } from '../utils'
 
 function* collectCommandNames(backend) {
   if (backend === Object.prototype) return

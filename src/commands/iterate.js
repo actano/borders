@@ -1,4 +1,4 @@
-import { commandWithStackFrame } from './stack-frame'
+import { commandWithStackFrame } from '../stack-frame'
 
 export const TYPE_ITERATE = 'ITERATE'
 

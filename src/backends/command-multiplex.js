@@ -1,8 +1,12 @@
-import MultiplexBackend from './multiplex'
+import { deprecate } from 'util'
+import multiplex from './multiplex'
 import getCommands from '../get-commands'
 
-export default class CommandMultiplexBackend extends MultiplexBackend {
+const deprecateCommandMultiplex = deprecate(() => {}, 'Use separate `.use()` calls or merge backends together')
+
+export default class CommandMultiplexBackend {
   constructor(...backends) {
+    deprecateCommandMultiplex()
     const commandToBackend = {}
     const _backends = {}
     let idCounter = 0
@@ -21,6 +25,6 @@ export default class CommandMultiplexBackend extends MultiplexBackend {
 
     const createBackend = id => _backends[id]
 
-    super(selectBackend, createBackend, Object.keys(commandToBackend))
+    Object.assign(this, multiplex(selectBackend, createBackend, Object.keys(commandToBackend)))
   }
 }

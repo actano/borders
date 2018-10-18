@@ -1,5 +1,5 @@
 import assert from 'assert'
-import { isString } from '../utils'
+import { isFunction, isString } from '../utils'
 
 export default class MultiplexBackend {
   constructor(selectBackend, createBackend, supportedCommands) {
@@ -11,10 +11,15 @@ export default class MultiplexBackend {
           const selected = await selectBackend(payload, type)
           assert(isString(selected))
           if (!backends[selected]) {
-            backends[selected] = (async () => connect(await createBackend(selected)))()
+            const createdBackend = await createBackend(selected)
+            assert(createdBackend, `No backend was created for '${selected}'`)
+            backends[selected] = (async () => connect(createdBackend))()
           }
+          const selectedBackend = await backends[selected]
+          assert(isFunction(selectedBackend[type]), `Created backend does not support command '${type}'`)
+          return selectedBackend
         }
-        return execute({ type, payload: { ...payload, backend } })
+        return execute({ type, backend, payload })
       }
     }
   }

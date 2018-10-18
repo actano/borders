@@ -73,7 +73,7 @@ describe('backend', () => {
       expect(commandContext).to.be.an('object')
     })
 
-    it('should pass an execute function taking to parameter as part of context', async () => {
+    it('should pass an execute function taking two parameters as part of context', async () => {
       const { commandContext } = await executeCommand(TWO_PARAM)
 
       expect(commandContext).to.respondTo('execute')

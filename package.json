@@ -13,8 +13,7 @@
     "lib",
     "command-with-stackframe.js",
     "backends.js",
-    "commands.js",
-    "get-commands.js"
+    "commands.js"
   ],
   "scripts": {
     "build": "babel src --out-dir lib",

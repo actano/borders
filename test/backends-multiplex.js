@@ -54,6 +54,8 @@ describe('backends/multiplex', () => {
     expect(createBackendSpy.callCount).to.eq(1)
   })
 
+  it('should should allow to return an array of backends from createBackend')
+
   it('should register all commands of `supportedCommands`', async () => {
     expect(getCommands(backend)).to.deep.eq(supportedCommands)
   })

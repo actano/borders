@@ -11,9 +11,14 @@ export default class MultiplexBackend {
           const selected = await selectBackend(payload, type)
           assert(isString(selected))
           if (!backends[selected]) {
-            const createdBackend = await createBackend(selected)
-            assert(createdBackend, `No backend was created for '${selected}'`)
-            backends[selected] = (async () => connect(createdBackend))()
+            backends[selected] = (async () => {
+              const createdBackend = await createBackend(selected)
+              assert(createdBackend, `No backend was created for '${selected}'`)
+              if (Array.isArray(createdBackend)) {
+                return connect(...createdBackend)
+              }
+              return connect(createdBackend)
+            })()
           }
           const selectedBackend = await backends[selected]
           assert(isFunction(selectedBackend[type]), `Created backend does not support command '${type}'`)

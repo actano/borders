@@ -1,1 +1,1 @@
-module.exports = require('./lib/get-commands')
+module.exports = require('./index').getCommands

@@ -11,4 +11,4 @@ export const parallel = deprecate(_parallel, 'import { parallel } from \'borders
 export const iterate = deprecate(_iterate, 'import { iterate } from \'borders/commands\'')
 export const map = deprecate(_map, 'import { map } from \'borders/commands\'')
 
-export const getCommands = deprecate(_getCommands, 'import getCommands from \'borders/get-commands\'')
+export const getCommands = deprecate(_getCommands, 'import { getCommands } from \'borders/backends\'')

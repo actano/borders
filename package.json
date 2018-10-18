@@ -12,6 +12,7 @@
   "files": [
     "lib",
     "command-with-stackframe.js",
+    "backends.js",
     "commands.js",
     "get-commands.js"
   ],

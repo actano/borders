@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import sinon from 'sinon'
 import getCommands from '../src/get-commands'
 
-import MultiplexBackend from '../src/backends/multiplex'
+import { multiplex } from '../src/backends'
 import Context from '../src/context'
 import { echoCommand } from './_execute'
 
@@ -25,7 +25,7 @@ describe('backends/multiplex', () => {
     })
     createBackendSpy = sinon.spy(createBackend)
     selectSpy = sinon.spy(selectBackend)
-    backend = new MultiplexBackend(selectSpy, createBackendSpy, supportedCommands)
+    backend = multiplex(selectSpy, createBackendSpy, supportedCommands)
     context = new Context().use(backend)
   })
 

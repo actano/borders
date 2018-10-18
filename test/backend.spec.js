@@ -4,9 +4,8 @@ import Context from '../src/context'
 describe('backend', () => {
   const ONE_PARAM = 'oneParam'
   const TWO_PARAM = 'twoParam'
-  const MAGIC = 'payload'
 
-  const command = (type, payload = MAGIC) => ({ type, payload })
+  const command = (type, payload) => ({ type, payload })
 
   let backend
   let borders
@@ -22,7 +21,7 @@ describe('backend', () => {
         const args = arguments.length
         return { self: this, payload, args }
       },
-      async [TWO_PARAM](payload, commandContext) {
+      async [TWO_PARAM](payload = {}, commandContext) {
         const args = arguments.length
         const { execute, subcontext, next } = payload
         const result = {
@@ -55,9 +54,9 @@ describe('backend', () => {
     })
 
     it('should pass payload as first parameter to commands', async () => {
-      const { payload } = await executeCommand(ONE_PARAM)
+      const { payload } = await executeCommand(ONE_PARAM, 'payload')
 
-      expect(payload).to.equal(MAGIC)
+      expect(payload).to.equal('payload')
     })
 
     it('should pass one parameter to commands with one parameter', async () => {

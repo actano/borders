@@ -1,5 +1,4 @@
 import assert from 'assert'
-import { deprecate } from 'util'
 import getCommands from './backends/get-commands'
 import { TYPE_ITERATE } from './commands/iterate'
 import iteratorToAsync from './iterator-to-async'
@@ -9,8 +8,6 @@ import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
 import { isCommand, isFunction, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
-
-const deprecateConnect = deprecate(() => {}, 'connect is deprecated. use execute with backend property as callback function instead')
 
 class Executor {
   constructor() {
@@ -44,14 +41,8 @@ class Executor {
               }
               return _ctx.execute(evaluateWithStackFrame(stackFrame, value))
             }
-            const invoke = deprecate((command, _backend) => this._command(command, _backend), '`invoke` is deprecated: use `execute` with `backend` property instead')
             const commandContext = {
               execute,
-              connect(..._backends) {
-                deprecateConnect()
-                return connect(..._backends)
-              },
-              invoke,
             }
             if (next) {
               commandContext.next = () => next.call(this, payload)

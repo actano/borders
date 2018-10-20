@@ -1,8 +1,7 @@
 import assert from 'assert'
+import { standard } from './backends'
 import getCommands from './backends/get-commands'
 import { TYPE_ITERATE } from './commands/iterate'
-import { TYPE_MAP } from './commands/map'
-import { TYPE_PARALLEL } from './commands/parallel'
 import iteratorToAsync from './iterator-to-async'
 import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
@@ -22,24 +21,6 @@ const getBackends = (command) => {
   return []
 }
 
-const InternalBackend = {
-  [TYPE_PARALLEL](payload, { execute }) {
-    return Promise.all(payload.map(execute))
-  },
-
-  [TYPE_MAP](payload, { execute }) {
-    const { collection, iteratee } = payload
-
-    function* mapCollection() {
-      for (const item of collection) {
-        yield execute(iteratee(item))
-      }
-    }
-
-    return iteratorToAsync(mapCollection())
-  },
-}
-
 class Executor {
   constructor() {
     const keys = new Map()
@@ -51,7 +32,7 @@ class Executor {
       return newKey
     }
     this._commands = {}
-    this.use(InternalBackend)
+    this.use(standard())
   }
 
   use(...backends) {

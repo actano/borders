@@ -79,9 +79,6 @@ export default class Context {
   }
 
   async execute(value) {
-    if (isCommand(value)) {
-      return this._command(value)
-    }
     const v = await this.iterate(value).next()
     if (!v.done) {
       throw new Error(`yielding literal values inside execute is not allowed: ${v.value}`)
@@ -89,25 +86,30 @@ export default class Context {
     return v.value
   }
 
-  async* _step(iterator, value) {
-    let nextValue
-    try {
-      if (isCommand(value)) {
-        nextValue = await this._command(value)
-      } else {
-        nextValue = yield value
-      }
-      await yieldToEventLoop()
-    } catch (e) {
-      return iterator.throw(e)
+  async* iterate(value) {
+    if (isCommand(value)) {
+      return this._command(value)
     }
-    return iterator.next(nextValue)
-  }
 
-  async* iterate(iterator) {
-    let v = await iterator.next()
+    const context = this
+    const step = async function* step(v) {
+      let nextValue
+      try {
+        if (isCommand(v)) {
+          nextValue = await context._command(v)
+        } else {
+          nextValue = yield v
+        }
+        await yieldToEventLoop()
+      } catch (e) {
+        return value.throw(e)
+      }
+      return value.next(nextValue)
+    }
+
+    let v = await value.next()
     while (!v.done) {
-      v = yield* this._step(iterator, v.value)
+      v = yield* step(v.value)
     }
     return v.value
   }

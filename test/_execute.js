@@ -1,4 +1,4 @@
-import Executor from '../src/execute'
+import Context from '../src/context'
 
 export const echoCommand = payload => ({ type: 'echo', payload })
 
@@ -8,4 +8,4 @@ const echoBackend = {
   },
 }
 
-export default value => new Executor().use(echoBackend).execute(value)
+export default value => new Context().use(echoBackend).execute(value)

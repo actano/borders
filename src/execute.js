@@ -1,105 +1,114 @@
 import assert from 'assert'
 import getCommands from './backends/get-commands'
 import { TYPE_ITERATE } from './commands/iterate'
-import iteratorToAsync from './iterator-to-async'
 import { TYPE_MAP } from './commands/map'
 import { TYPE_PARALLEL } from './commands/parallel'
+import iteratorToAsync from './iterator-to-async'
 import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
-import { isCommand, isFunction, isString } from './utils'
+import { isCommand, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 
-class Executor {
-  constructor() {
-    let _id = 0
-
-    const connect = (...backends) => {
-      assert(backends.length > 0, 'Must provide at least one backend')
-
-      const connectBackend = (backend, nextBackend) => {
-        _id += 1
-        const key = `_backend.${_id}`
-        this[key] = backend
-        const invoker = (fn, next) => {
-          if (fn.length === 1) {
-            return function directCommand(payload) {
-              return fn.call(this[key], payload)
-            }
-          }
-          return function contextCommand(payload) {
-            const execute = async (value, subcontext) => {
-              const { stackFrame } = payload
-              const _ctx = subcontext
-                ? Object.create(this, { [key]: { value: subcontext } })
-                : this
-              if (isCommand(value)) {
-                let _backend = await value.backend
-                if (isFunction(_backend)) {
-                  _backend = await _backend(connect)
-                }
-                return _ctx._command(value, _backend)
-              }
-              return _ctx.execute(evaluateWithStackFrame(stackFrame, value))
-            }
-            const commandContext = {
-              execute,
-            }
-            if (next) {
-              commandContext.next = () => next.call(this, payload)
-            }
-            return fn.call(this[key], payload, commandContext)
-          }
-        }
-
-        const result = {}
-        for (const op of getCommands(backend)) {
-          const fn = backend[op]
-          assert(fn.length <= 2, `command.type "${op}" must take max two arguments (not ${fn.length})`)
-          result[op] = invoker(fn, nextBackend && nextBackend[op])
-        }
-        return result
-      }
-
-      return backends.reduceRight((prev, backend) => connectBackend(backend, prev), null)
+const getBackends = async (command) => {
+  if (isCommand(command) && command.backend) {
+    const _backends = await command.backend
+    if (Array.isArray(_backends)) {
+      return _backends
     }
-
-    this._connect = connect
-
-    this._use = (...backends) => {
-      assert(backends.length > 0, 'Must provide at least one backend')
-      const commands = getCommands(backends[0])
-      assert(commands.filter(op => this[op]).length === 0, `Commands already bound: ${commands.filter(op => this[op]).join(', ')}`)
-      Object.assign(this, this._connect(...backends))
+    if (_backends) {
+      return [_backends]
     }
   }
+  return []
+}
 
-  [TYPE_PARALLEL](payload) {
-    return Promise.all(payload.map(v => this.execute(v)))
-  }
+const InternalBackend = {
+  [TYPE_PARALLEL](payload, { execute }) {
+    return Promise.all(payload.map(execute))
+  },
 
-  [TYPE_ITERATE](payload) {
-    return iteratorToAsync(this._iterate(payload))
-  }
-
-  [TYPE_MAP](payload) {
+  [TYPE_MAP](payload, { execute }) {
     const { collection, iteratee } = payload
 
     function* mapCollection() {
       for (const item of collection) {
-        yield this.execute(iteratee(item))
+        yield execute(iteratee(item))
       }
     }
 
-    return iteratorToAsync(mapCollection.call(this))
+    return iteratorToAsync(mapCollection())
+  },
+}
+
+class Executor {
+  constructor() {
+    const keys = new Map()
+    this._keyFor = (backend) => {
+      const key = keys.get(backend)
+      if (key) return key
+      const newKey = `_backend.${keys.size + 1}`
+      keys.set(backend, newKey)
+      return newKey
+    }
+    this._commands = {}
+    this._use(InternalBackend)
   }
 
-  async _command(value, backend) {
+  _use(...backends) {
+    assert(backends.length > 0, 'Must provide at least one backend')
+    const commands = getCommands(backends[0])
+    assert(commands.filter(op => this._commands[op]).length === 0, `Commands already bound: ${commands.filter(op => this._commands[op]).join(', ')}`)
+    for (const op of commands) {
+      this._commands[op] = backends
+    }
+    return this
+  }
+
+  async _command(value, ...backends) {
     const { type, payload, stackFrame } = value
+    if (type === TYPE_ITERATE) {
+      return iteratorToAsync(this._iterate(evaluateWithStackFrame(stackFrame, payload)))
+    }
+    const _backends = backends.length === 0 ? this._commands[type] : backends
+
     assert(isString(type), 'command.type must be string')
     assert(type[0] !== '_', `command.type "${type}" must not start with _`)
-    const fn = backend ? backend[type] : this[type]
-    assert(isFunction(fn), `command.type "${type}" is not a function`)
-    return withStackFrame(stackFrame, () => fn.call(this, payload))
+
+    const createNext = (index) => {
+      const fn = index < _backends.length && _backends[index][type]
+      if (!fn) {
+        return null
+      }
+
+      assert(fn.length <= 2, `command.type "${type}" must take max two arguments (not ${fn.length})`)
+
+      return () => {
+        const backend = _backends[index]
+        const key = this._keyFor(backend)
+        const context = this[key] || backend
+
+        if (fn.length === 1) {
+          return fn.call(context, payload)
+        }
+
+        const next = createNext(index + 1)
+        const execute = async (_value, subcontext) => {
+          const _subcontext = (subcontext
+            ? Object.create(this, { [key]: { value: subcontext } })
+            : this)
+          const _subbackends = await getBackends(_value)
+          if (_subbackends.length) {
+            return _subcontext._command(_value, ..._subbackends)
+          }
+          return _subcontext.execute(_value)
+        }
+
+        const commandContext = next ? { execute, next } : { execute }
+        return fn.call(context, payload, commandContext)
+      }
+    }
+
+    return withStackFrame(stackFrame, createNext(0))
   }
 
   async execute(value) {

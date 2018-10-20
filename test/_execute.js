@@ -8,4 +8,4 @@ const echoBackend = {
   },
 }
 
-export default value => Object.assign(new Executor(), echoBackend).execute(value)
+export default value => new Executor()._use(echoBackend).execute(value)

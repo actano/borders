@@ -1,9 +1,7 @@
 import assert from 'assert'
 import { standard } from './backends'
 import getCommands from './backends/get-commands'
-import { TYPE_ITERATE } from './commands/iterate'
-import iteratorToAsync from './iterator-to-async'
-import { evaluateWithStackFrame, withStackFrame } from './stack-frame'
+import { withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
 import { isCommand, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
@@ -35,9 +33,6 @@ export default class Context {
 
   _command(value, ...backends) {
     const { type, payload, stackFrame } = value
-    if (type === TYPE_ITERATE) {
-      return iteratorToAsync(this._iterate(evaluateWithStackFrame(stackFrame, payload)))
-    }
     const _backends = backends.length === 0 ? this._commands[type] : backends
 
     assert(isString(type), 'command.type must be string')
@@ -61,18 +56,21 @@ export default class Context {
         }
 
         const next = createNext(index + 1)
+        const withContext = subcontext => (subcontext
+          ? Object.create(this, { [key]: { value: subcontext } })
+          : this)
+
         const execute = (_value, subcontext) => {
-          const _subcontext = (subcontext
-            ? Object.create(this, { [key]: { value: subcontext } })
-            : this)
           const _subbackends = getBackends(_value)
           if (_subbackends.length) {
-            return _subcontext._command(_value, ..._subbackends)
+            return withContext(subcontext)._command(_value, ..._subbackends)
           }
-          return _subcontext.execute(_value)
+          return withContext(subcontext).execute(_value)
         }
 
-        const commandContext = next ? { execute, next } : { execute }
+        const iterate = (_value, subcontext) => withContext(subcontext).iterate(_value)
+
+        const commandContext = next ? { execute, iterate, next } : { execute, iterate }
         return fn.call(context, payload, commandContext)
       }
     }
@@ -84,7 +82,7 @@ export default class Context {
     if (isCommand(value)) {
       return this._command(value)
     }
-    const v = await this._iterate(value).next()
+    const v = await this.iterate(value).next()
     if (!v.done) {
       throw new Error(`yielding literal values inside execute is not allowed: ${v.value}`)
     }
@@ -106,7 +104,7 @@ export default class Context {
     return iterator.next(nextValue)
   }
 
-  async* _iterate(iterator) {
+  async* iterate(iterator) {
     let v = await iterator.next()
     while (!v.done) {
       v = yield* this._step(iterator, v.value)

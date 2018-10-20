@@ -1,8 +1,13 @@
+import { TYPE_ITERATE } from '../commands/iterate'
 import { TYPE_MAP } from '../commands/map'
 import { TYPE_PARALLEL } from '../commands/parallel'
 import iteratorToAsync from '../iterator-to-async'
 
 export default () => ({
+  [TYPE_ITERATE](payload, { iterate }) {
+    return iteratorToAsync(iterate(payload))
+  },
+
   [TYPE_PARALLEL](payload, { execute }) {
     return Promise.all(payload.map(execute))
   },

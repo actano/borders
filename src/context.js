@@ -1,4 +1,5 @@
 import assert from 'assert'
+import EventEmitter from 'events'
 import { standard } from './backends'
 import getCommands from './backends/get-commands'
 import { withStackFrame } from './stack-frame'
@@ -7,8 +8,11 @@ import { isCommand, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 import getBackends from './get-backends'
 
-export default class Context {
+export const EVENT_INVOKE = 'invoke'
+
+export default class Context extends EventEmitter {
   constructor() {
+    super()
     const keys = new Map()
     this._keyFor = (backend) => {
       const key = keys.get(backend)
@@ -37,6 +41,8 @@ export default class Context {
 
     assert(isString(type), 'command.type must be string')
     assert(type[0] !== '_', `command.type "${type}" must not start with _`)
+
+    this.emit(EVENT_INVOKE, type, payload)
 
     const createNext = (index) => {
       const fn = index < _backends.length && _backends[index][type]

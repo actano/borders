@@ -6,7 +6,7 @@ export default class Context {
   }
 
   use(...backends) {
-    this._commands._use(...backends)
+    this._commands.use(...backends)
     return this
   }
 

@@ -51,10 +51,10 @@ class Executor {
       return newKey
     }
     this._commands = {}
-    this._use(InternalBackend)
+    this.use(InternalBackend)
   }
 
-  _use(...backends) {
+  use(...backends) {
     assert(backends.length > 0, 'Must provide at least one backend')
     const commands = getCommands(backends[0])
     assert(commands.filter(op => this._commands[op]).length === 0, `Commands already bound: ${commands.filter(op => this._commands[op]).join(', ')}`)

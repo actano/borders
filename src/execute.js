@@ -9,9 +9,9 @@ import './symbol-async-iterator'
 import { isCommand, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 
-const getBackends = async (command) => {
+const getBackends = (command) => {
   if (isCommand(command) && command.backend) {
-    const _backends = await command.backend
+    const _backends = command.backend
     if (Array.isArray(_backends)) {
       return _backends
     }
@@ -64,7 +64,7 @@ class Executor {
     return this
   }
 
-  async _command(value, ...backends) {
+  _command(value, ...backends) {
     const { type, payload, stackFrame } = value
     if (type === TYPE_ITERATE) {
       return iteratorToAsync(this._iterate(evaluateWithStackFrame(stackFrame, payload)))
@@ -92,11 +92,11 @@ class Executor {
         }
 
         const next = createNext(index + 1)
-        const execute = async (_value, subcontext) => {
+        const execute = (_value, subcontext) => {
           const _subcontext = (subcontext
             ? Object.create(this, { [key]: { value: subcontext } })
             : this)
-          const _subbackends = await getBackends(_value)
+          const _subbackends = getBackends(_value)
           if (_subbackends.length) {
             return _subcontext._command(_value, ..._subbackends)
           }

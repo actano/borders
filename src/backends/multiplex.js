@@ -15,7 +15,7 @@ export default (selectBackend, createBackend, supportedCommands) => {
         assert(backends[selected], `No backend was created for '${selected}'`)
       }
 
-      const backend = backends[selected]
+      const backend = await backends[selected]
       return execute({ type, backend, payload })
     }
   }

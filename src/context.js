@@ -1,6 +1,6 @@
 import assert from 'assert'
 import EventEmitter from 'events'
-import { standard } from './backends'
+import { getListeningEvents, standard, listenerName } from './backends'
 import getCommands from './backends/get-commands'
 import { withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
@@ -32,6 +32,17 @@ export default class Context extends EventEmitter {
     for (const op of commands) {
       this._commands[op] = backends
     }
+    backends.forEach((backend) => {
+      const events = getListeningEvents(backend)
+      events.forEach((event) => {
+        const key = this._keyFor(backend)
+        const fn = backend[listenerName(event)]
+        this.on(event, function listener(...args) {
+          const context = this[key] || backend
+          return fn.apply(context, args)
+        })
+      })
+    })
     return this
   }
 
@@ -39,6 +50,7 @@ export default class Context extends EventEmitter {
     const { type, payload, stackFrame } = value
     const _backends = backends.length === 0 ? this._commands[type] : backends
 
+    assert(_backends, `No backends for command ${type}`)
     assert(isString(type), 'command.type must be string')
     assert(type[0] !== '_', `command.type "${type}" must not start with _`)
 

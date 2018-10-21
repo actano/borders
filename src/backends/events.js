@@ -12,6 +12,7 @@ function* collectListeningEventNames(backend) {
   yield* collectListeningEventNames(Object.getPrototypeOf(backend))
 }
 
-export const getListeningEvents = backend => Array.from(new Set(collectListeningEventNames(backend))).sort()
+export const getListeningEvents = backend =>
+  Array.from(new Set(collectListeningEventNames(backend))).sort()
 
 export default eventName => `${LISTEN_PREFIX}${eventName}`

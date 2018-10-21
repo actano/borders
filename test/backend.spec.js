@@ -1,11 +1,14 @@
 import { expect } from 'chai'
-import Context from '../src/context'
+import sinon from 'sinon'
+
+import { listenerName } from '../src/backends'
+import Context, { EVENT_INVOKE } from '../src/context'
 
 describe('backend', () => {
   const ONE_PARAM = 'oneParam'
   const TWO_PARAM = 'twoParam'
 
-  const command = (type, payload) => ({ type, payload })
+  const command = (type, payload, backend) => ({ type, payload, backend })
 
   let backend
   let borders
@@ -14,33 +17,39 @@ describe('backend', () => {
     return yield command(type, payload)
   }())
 
-  beforeEach('create backend', () => {
-    backend = {
-      context: 'root',
-      [ONE_PARAM](payload) {
-        const args = arguments.length
-        return { self: this, payload, args }
-      },
-      async [TWO_PARAM](payload = {}, commandContext) {
-        const args = arguments.length
-        const { execute, subcontext, next } = payload
-        const result = {
-          self: this, payload, commandContext, args,
-        }
+  const createBackend = context => ({
+    context,
+    events: [],
+    [ONE_PARAM](payload) {
+      const args = arguments.length
+      return { self: this, payload, args }
+    },
+    async [TWO_PARAM](payload = {}, commandContext) {
+      const args = arguments.length
+      const { execute, subcontext, next } = payload
+      const result = {
+        self: this, payload, commandContext, args,
+      }
 
-        if (next && commandContext.next) {
-          result.result = await commandContext.next()
-        } else if (execute) {
-          if (subcontext) {
-            result.child = Object.assign(Object.create(this), { context: 'child' })
-            result.result = await commandContext.execute(execute(), result.child)
-          } else {
-            result.result = await commandContext.execute(execute())
-          }
+      if (next && commandContext.next) {
+        result.result = await commandContext.next()
+      } else if (execute) {
+        if (subcontext) {
+          result.child = Object.assign(Object.create(this), { context: 'child', events: [] })
+          result.result = await commandContext.execute(execute(), result.child)
+        } else {
+          result.result = await commandContext.execute(execute())
         }
-        return result
-      },
-    }
+      }
+      return result
+    },
+    [listenerName(EVENT_INVOKE)](type, payload) {
+      this.events.push({ type, payload })
+    },
+  })
+
+  beforeEach('create backend', () => {
+    backend = createBackend('root')
   })
 
   describe('single backend', () => {
@@ -72,34 +81,85 @@ describe('backend', () => {
       expect(commandContext).to.be.an('object')
     })
 
-    it('should pass an execute function taking two parameters as part of context', async () => {
-      const { commandContext } = await executeCommand(TWO_PARAM)
+    describe('execute', () => {
+      it('should pass an execute function taking two parameters as part of context', async () => {
+        const { commandContext } = await executeCommand(TWO_PARAM)
 
-      expect(commandContext).to.respondTo('execute')
-      const { execute } = commandContext
-      expect(execute).to.have.lengthOf(2)
-    })
-
-    it('should execute generator with same context', async () => {
-      const { result } = await executeCommand(TWO_PARAM, {
-        * execute() {
-          return yield command(ONE_PARAM)
-        },
+        expect(commandContext).to.respondTo('execute')
+        const { execute } = commandContext
+        expect(execute).to.have.lengthOf(2)
       })
 
-      const { self } = result
-      expect(self).to.equal(backend)
+      it('should execute generator with same context', async () => {
+        const { result } = await executeCommand(TWO_PARAM, {
+          * execute() {
+            return yield command(ONE_PARAM)
+          },
+        })
+
+        const { self } = result
+        expect(self).to.equal(backend)
+      })
+
+      it('should execute generator with new context', async () => {
+        const { self, child, result } = await executeCommand(TWO_PARAM, {
+          subcontext: true,
+          * execute() {
+            return yield command(ONE_PARAM)
+          },
+        })
+        expect(self).to.equal(backend)
+        expect(result.self).to.equal(child)
+      })
+
+      it('should execute a command', async () => {
+        const { self, child, result } = await executeCommand(TWO_PARAM, {
+          subcontext: true,
+          execute() {
+            return command(ONE_PARAM)
+          },
+        })
+        expect(self).to.equal(backend)
+        expect(result.self).to.equal(child)
+      })
+
+      it('should execute a command on a separate backend', async () => {
+        const spy = sinon.spy()
+        const oneTimeBackend = { [ONE_PARAM]: spy }
+        const { self } = await executeCommand(TWO_PARAM, {
+          subcontext: true,
+          execute() {
+            return command(ONE_PARAM, true, oneTimeBackend)
+          },
+        })
+        expect(self).to.equal(backend)
+        expect(spy.callCount).to.equal(1)
+      })
+
+      it('should execute a command on a chain of backends', async () => {
+        const spy = sinon.spy((payload, { next }) => next())
+        const oneTimeBackend = { [ONE_PARAM]: spy }
+        const secondSpy = sinon.spy()
+        const secondBackend = { [ONE_PARAM]: secondSpy }
+        const { self } = await executeCommand(TWO_PARAM, {
+          subcontext: true,
+          execute() {
+            return command(ONE_PARAM, true, [oneTimeBackend, secondBackend])
+          },
+        })
+        expect(self).to.equal(backend)
+        expect(spy.callCount).to.equal(1)
+      })
     })
 
-    it('should execute generator with new context', async () => {
-      const { self, child, result } = await executeCommand(TWO_PARAM, {
-        subcontext: true,
-        * execute() {
-          return yield command(ONE_PARAM)
-        },
+    describe('iterate', () => {
+      it('should pass an iterate function taking two parameters as part of context', async () => {
+        const { commandContext } = await executeCommand(TWO_PARAM)
+
+        expect(commandContext).to.respondTo('iterate')
+        const { iterate } = commandContext
+        expect(iterate).to.have.lengthOf(2)
       })
-      expect(self).to.equal(backend)
-      expect(result.self).to.equal(child)
     })
   })
 
@@ -108,7 +168,7 @@ describe('backend', () => {
     let frontBackend
 
     beforeEach('create front backend', () => {
-      frontBackend = Object.assign({}, backend, { context: 'front', FRONT_ONLY: backend[TWO_PARAM] })
+      frontBackend = Object.assign(createBackend('front'), { FRONT_ONLY: backend[TWO_PARAM] })
     })
 
     beforeEach('create multiple backends context', () => {
@@ -161,6 +221,24 @@ describe('backend', () => {
       expect(result.self, 'second backend of call').to.equal(backend)
       expect(result.result.self, 'first backend of subcontext call').to.equal(frontBackend)
       expect(result.result.result.self, 'second backend of subcontext call').to.equal(result.child)
+    })
+
+    describe('listeners', () => {
+      it('should invoke listening backend with current context', async () => {
+        const type = TWO_PARAM
+        const innerPayload = { next: true }
+        const payload = {
+          next: true,
+          subcontext: true,
+          * execute() {
+            return yield command(type, innerPayload)
+          },
+        }
+        const { self, result } = await executeCommand(type, payload)
+        expect(self.events).to.deep.equal([{ type, payload }, { type, payload: innerPayload }])
+        expect(result.self.events).to.deep.equal([{ type, payload }])
+        expect(result.child.events).to.deep.equal([{ type, payload: innerPayload }])
+      })
     })
   })
 })

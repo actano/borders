@@ -21,4 +21,3 @@ export default (selectBackend, createBackend, supportedCommands) => {
   }
   return result
 }
-

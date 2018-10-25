@@ -16,4 +16,3 @@ describe('execute/parallel', () => {
     await expect(result).to.eventually.eql(['1', '2'])
   })
 })
-

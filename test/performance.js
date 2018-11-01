@@ -5,22 +5,28 @@ import iteratorToAsync from '../src/iterator-to-async'
 import Context from '../src/context'
 
 // ms to delay a command to simulate I/O, lower values will show the overhead of borders
-const ioTime = 1
-
+const ioTime = 10
 // Commands executed per 'op', lower values will likely show the overhead of context creation
-const commandsPerOp = 1000
+const ioCommandsPerOp = 100
+// No-Ops executed per 'op', higher values will likely show the overhead of borders
+const noopCommandsPerOp = 10000
 
 const immediate = () => new Promise(resolve => setImmediate(resolve))
 const timeout = ms => new Promise(resolve => setTimeout(resolve, ms))
 const delay = ms => (ms < 1 ? immediate() : timeout(ms))
 
 const performIo = () => delay(ioTime)
+const performNoop = () => Promise.resolve()
 
 const io = () => ({ type: 'io' })
+const noop = () => ({ type: 'noop' })
 
 const backend = {
   io() {
     return performIo()
+  },
+  noop() {
+    return Promise.resolve()
   },
 }
 
@@ -78,21 +84,30 @@ const it = (desc, fn) => {
 
 describe('sequential commands', () => {
   it('plain sequential async/await for io promise', async () => {
-    for (let i = 0; i < commandsPerOp; i += 1) {
+    for (let i = 0; i < ioCommandsPerOp; i += 1) {
       await performIo() // eslint-disable-line no-await-in-loop
+    }
+    for (let i = 0; i < noopCommandsPerOp; i += 1) {
+      await performNoop() // eslint-disable-line no-await-in-loop
     }
   })
 
   it('running sequential io commands via context.execute()', async () => {
-    for (let i = 0; i < commandsPerOp; i += 1) {
+    for (let i = 0; i < ioCommandsPerOp; i += 1) {
       await context.execute(io()) // eslint-disable-line no-await-in-loop
+    }
+    for (let i = 0; i < noopCommandsPerOp; i += 1) {
+      await context.execute(noop()) // eslint-disable-line no-await-in-loop
     }
   })
 
   it('running borders-service generator sequential yielding commands via context.execute()', async () => {
     await context.execute((function* () {
-      for (let i = 0; i < commandsPerOp; i += 1) {
+      for (let i = 0; i < ioCommandsPerOp; i += 1) {
         yield io()
+      }
+      for (let i = 0; i < noopCommandsPerOp; i += 1) {
+        yield noop()
       }
     })())
   })
@@ -101,8 +116,11 @@ describe('sequential commands', () => {
 describe('parallel commands', () => {
   it('using iteratorToAsync to directly perform io in parallel', async () => {
     const generator = (function* () {
-      for (let i = 0; i < commandsPerOp; i += 1) {
+      for (let i = 0; i < ioCommandsPerOp; i += 1) {
         yield performIo()
+      }
+      for (let i = 0; i < noopCommandsPerOp; i += 1) {
+        yield performNoop()
       }
     }())
     await consume(iteratorToAsync(generator))
@@ -111,8 +129,11 @@ describe('parallel commands', () => {
   it('running map command yielding commands via context.execute()', async () => {
     await context.execute(async function* () {
       const iterator = (function* () {
-        for (let i = 0; i < commandsPerOp; i += 1) {
+        for (let i = 0; i < ioCommandsPerOp; i += 1) {
           yield io()
+        }
+        for (let i = 0; i < noopCommandsPerOp; i += 1) {
+          yield noop()
         }
       }())
       const asyncIterator = yield map(iterator, x => x)

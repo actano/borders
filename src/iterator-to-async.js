@@ -9,7 +9,7 @@ import './symbol-async-iterator'
  * * a defined number of concurrently running promises
  */
 
-export default async function* queue(
+async function* queue(
   promiseIterator,
   concurrency = 8,
   readAhead = concurrency * 4,
@@ -19,6 +19,7 @@ export default async function* queue(
   const buffer = []
   let nextItem = null
   let runningPromises = 0
+  let srcDone = false
 
   const concurrencyAvailable = () => runningPromises <= concurrency
   const readAheadAvailable = () => buffer.length < readAhead
@@ -32,21 +33,24 @@ export default async function* queue(
     }
   }
 
-  const isSrcDone = () => nextItem !== null && nextItem.done
-
   const pullNext = async () => {
+    if (srcDone) return false
+
     if (nextItem === null) {
-      nextItem = await promise(promiseIterator.next())
+      nextItem = promise(promiseIterator.next())
     }
-    const { done, value } = nextItem
-    if (done) return false
+    const { done, value } = await nextItem
+    if (done) {
+      srcDone = true
+      return false
+    }
     nextItem = null
     buffer.push(promise(value))
     return true
   }
 
   const isNextAvailable = async () => {
-    while (!isSrcDone() && concurrencyAvailable() && readAheadAvailable()) {
+    while (!srcDone && concurrencyAvailable() && readAheadAvailable()) {
       await pullNext() // eslint-disable-line no-await-in-loop
     }
     if (buffer.length > 0) return true
@@ -64,3 +68,5 @@ export default async function* queue(
     yield await shift() // eslint-disable-line no-await-in-loop
   }
 }
+
+export default queue

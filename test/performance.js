@@ -35,24 +35,36 @@ const consume = async (generator) => {
 }
 
 let suite = null
+let running = Promise.resolve()
 
 const describe = (desc, fn) => {
-  global.describe(desc, () => {
-    global.it('Executing benchmark', function (cb) {
-      this.timeout(120000)
-      suite = new Benchmark.Suite()
-      fn()
-      suite
-        .on('cycle', ({ target }) => {
-          beautifyBenchmark.add(target)
-        })
-        .on('complete', () => {
-          beautifyBenchmark.log()
-          cb()
-        })
-        .run({ async: true })
-    })
+  const run = () => new Promise((resolve) => {
+    suite = new Benchmark.Suite()
+    fn()
+    suite
+      .on('cycle', ({ target }) => {
+        beautifyBenchmark.add(target)
+      })
+      .on('complete', () => {
+        beautifyBenchmark.log()
+        resolve()
+      })
+      .run({ async: true })
   })
+
+  if (global.describe && global.it) {
+    global.describe(desc, () => {
+      global.it('Executing benchmark', async function () {
+        this.timeout(120000)
+        await run()
+      })
+    })
+  } else {
+    running = running.then(() => {
+      console.log(`Running ${desc}`)
+      return run()
+    })
+  }
 }
 
 const it = (desc, fn) => {

@@ -9,8 +9,8 @@ describe('borders/iterator-to-async', () => {
     iterationCount = 0
     let { done, value } = iterator.next()
     while (!done) {
-      yield value
-      iterationCount += 1;
+      iterationCount += 1
+      yield value;
       ({ done, value } = iterator.next())
     }
   }
@@ -25,6 +25,10 @@ describe('borders/iterator-to-async', () => {
 
   const later = () => new Promise((resolve) => {
     setTimeout(resolve, 10)
+  })
+
+  const immediate = () => new Promise((resolve) => {
+    setImmediate(resolve)
   })
 
   const iterate = n => countIterations(generator(n))
@@ -77,8 +81,9 @@ describe('borders/iterator-to-async', () => {
     // eslint-disable-next-line no-unused-vars
     for await (const x of toAsync(iterator, CONCURRENCY, READ_AHEAD)) {
       count += 1
-      if (count === BREAK_AT - 1) break
+      if (count === BREAK_AT) break
     }
+    await immediate()
     expect(iterationCount).to.eq(BREAK_AT + CONCURRENCY)
   })
 

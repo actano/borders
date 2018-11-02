@@ -9,63 +9,66 @@ import './symbol-async-iterator'
  * * a defined number of concurrently running promises
  */
 
-async function* queue(
+function queue(
   promiseIterator,
   concurrency = 8,
   readAhead = concurrency * 4,
 ) {
   if (concurrency < 1) concurrency = 1 // eslint-disable-line no-param-reassign
   if (readAhead < 1) readAhead = 1 // eslint-disable-line no-param-reassign
+
   const buffer = []
-  let nextItem = null
-  let runningPromises = 0
   let srcDone = false
+  let unresolvedPromises = 0
+  let queuedItems = 0
+  let readAheadRunning = false
 
-  const concurrencyAvailable = () => runningPromises <= concurrency
-  const readAheadAvailable = () => buffer.length < readAhead
+  const fetch = () => {
+    unresolvedPromises += 1
+    return Promise.resolve(promiseIterator.next())
+      .then(({ value, done }) => {
+        if (done) {
+          srcDone = true
+          return true
+        }
+        unresolvedPromises += 1
+        buffer.push(Promise.resolve(value).finally(() => {
+          unresolvedPromises -= 1
+          queuedItems += 1
+        }))
+        return false
+      }).finally(() => {
+        unresolvedPromises -= 1
+      })
+  }
 
-  const promise = async (value) => {
-    runningPromises += 1
-    try {
-      return await value
-    } finally {
-      runningPromises -= 1
+  const _readAhead = () => {
+    if (readAheadRunning) return
+    if (!srcDone && unresolvedPromises < concurrency && queuedItems < readAhead) {
+      readAheadRunning = true
+      fetch().then(x => {
+        readAheadRunning = false
+        return (x ? null : _readAhead())
+      })
     }
   }
 
-  const pullNext = async () => {
-    if (srcDone) return false
-
-    if (nextItem === null) {
-      nextItem = promise(promiseIterator.next())
+  const next = async () => {
+    if (!buffer.length && (srcDone || await fetch())) {
+      return { done: true }
     }
-    const { done, value } = await nextItem
-    if (done) {
-      srcDone = true
-      return false
-    }
-    nextItem = null
-    buffer.push(promise(value))
-    return true
+    const item = buffer.shift()
+    queuedItems -= 1
+    _readAhead()
+    const value = await item
+    return { done: false, value }
   }
 
-  const isNextAvailable = async () => {
-    while (!srcDone && concurrencyAvailable() && readAheadAvailable()) {
-      await pullNext() // eslint-disable-line no-await-in-loop
-    }
-    if (buffer.length > 0) return true
-    return pullNext()
-  }
-
-  const shift = async () => {
-    if (await isNextAvailable()) {
-      return buffer.shift()
-    }
-    return undefined
-  }
-
-  while (await isNextAvailable()) { // eslint-disable-line no-await-in-loop
-    yield await shift() // eslint-disable-line no-await-in-loop
+  _readAhead()
+  const iterator = { next }
+  return {
+    [Symbol.asyncIterator]() { return iterator },
+    next,
   }
 }
 

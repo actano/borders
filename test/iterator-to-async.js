@@ -5,24 +5,6 @@ import toAsync from '../src/iterator-to-async'
 describe('borders/iterator-to-async', () => {
   let iterationCount
 
-  function* countIterations(iterator) {
-    iterationCount = 0
-    let { done, value } = iterator.next()
-    while (!done) {
-      iterationCount += 1
-      yield value;
-      ({ done, value } = iterator.next())
-    }
-  }
-
-  function* generator(n) {
-    let i = 0
-    while (i < n) {
-      yield i
-      i += 1
-    }
-  }
-
   const later = () => new Promise((resolve) => {
     setTimeout(resolve, 10)
   })
@@ -31,12 +13,37 @@ describe('borders/iterator-to-async', () => {
     setImmediate(resolve)
   })
 
+  async function* countIterations(iterator) {
+    iterationCount = 0
+    let { done, value } = await iterator.next()
+    while (!done) {
+      iterationCount += 1
+      yield value;
+      ({ done, value } = await iterator.next())
+    }
+  }
+
+  async function* generator(n) {
+    let i = 0
+    while (i < n) {
+      await immediate()
+      yield i
+      i += 1
+    }
+  }
+
   const iterate = n => countIterations(generator(n))
 
-  it('should return an async iterable and an iterator', () => {
+  beforeEach(() => {
+    iterationCount = 0
+  })
+
+  it('should return an async iterable and an iterator', async () => {
     const result = toAsync(iterate(10))
     expect(result).to.respondTo(Symbol.asyncIterator)
     expect(result).to.respondTo('next')
+    expect(result).to.respondTo('return')
+    await result.return()
   })
 
   it('should deliver an iterator of all values in source order', async () => {
@@ -83,8 +90,8 @@ describe('borders/iterator-to-async', () => {
       count += 1
       if (count === BREAK_AT) break
     }
-    await immediate()
-    expect(iterationCount).to.eq(BREAK_AT + CONCURRENCY)
+    expect(iterationCount).to.be.above(BREAK_AT)
+    expect(iterationCount).to.be.below(BREAK_AT + CONCURRENCY + 1)
   })
 
   it('should read ahead promises up to readAhead with resolved promises', async () => {
@@ -97,6 +104,6 @@ describe('borders/iterator-to-async', () => {
       if (count === BREAK_AT) break
     }
     expect(iterationCount).to.be.above(BREAK_AT)
-    expect(iterationCount).to.be.below(BREAK_AT + READ_AHEAD)
+    expect(iterationCount).to.be.below(BREAK_AT + READ_AHEAD + 1)
   })
 })

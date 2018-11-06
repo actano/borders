@@ -27,7 +27,7 @@
     "coverage": "npm run clean:coverage; nyc --reporter=text mocha",
     "coverage:html": "npm run clean:coverage; nyc --reporter=html mocha; open coverage/index.html",
     "coverage:codecov": "npm run coverage && nyc report --reporter=text-lcov > coverage.lcov && codecov",
-    "performance": "babel-node test/performance.js"
+    "performance": "babel-node test/util/performance.js"
   },
   "devDependencies": {
     "@babel/cli": "^7.1.2",

@@ -23,8 +23,12 @@ function queue(
 
   const withWaiting = fn => (...args) => {
     waiting += 1
-    return fn(...args).finally(() => {
+    return fn(...args).then((result) => {
       waiting -= 1
+      return result
+    }, (reason) => {
+      waiting -= 1
+      throw reason
     })
   }
 
@@ -32,7 +36,13 @@ function queue(
 
   const startReadAhead = () => {
     while (!srcDone && waiting < concurrency && buffer.length < readAhead) {
-      buffer.push(next().finally(startReadAhead))
+      buffer.push(next().then((result) => {
+        startReadAhead()
+        return result
+      }, (reason) => {
+        startReadAhead()
+        throw reason
+      }))
     }
   }
 

@@ -47,17 +47,16 @@ export class StackFrame extends Error {
   }
 }
 
-export const commandWithStackFrame = (() => {
-  if (process.env.NODE_ENV !== 'production') {
-    return commandCreator => (...args) => {
-      const command = commandCreator(...args)
-      command.stackFrame = new StackFrame()
-      return command
-    }
-  }
+const _commandWithStackFrame = commandCreator => (...args) => {
+  const command = commandCreator(...args)
+  command.stackFrame = new StackFrame()
+  return command
+}
 
-  return commandCreator => commandCreator
-})()
+export const commandCreatorForEnvironment = env =>
+  (env === 'production' ? commandCreator => commandCreator : _commandWithStackFrame)
+
+export const commandWithStackFrame = commandCreatorForEnvironment(process.env.NODE_ENV)
 
 export const withStackFrame = (stackFrame, fn) => {
   if (!stackFrame) {

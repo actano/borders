@@ -1,19 +1,48 @@
 import { expect } from 'chai'
 
 import Context from '../src/context'
-import runTestWithError from './run-test-with-error'
-import runWithNodeEnv from './run-with-node-env'
-
-function requireNoCache(module) {
-  delete require.cache[require.resolve(module)]
-  // eslint-disable-next-line global-require,import/no-dynamic-require
-  return require(module)
-}
+import { commandCreatorForEnvironment } from '../src/stack-frame'
 
 describe('commandWithStackFrame', () => {
   let backendErrorStack
+  let commandWithStackFrame
 
-  async function runTestWithoutError(commandWithStackFrame, devMode) {
+  async function runTestWithError(testCommand, devMode) {
+    let thrownError
+
+    const setError = (e, stack = e.stack) => {
+      backendErrorStack = stack
+      return e
+    }
+
+    const createCommand = commandWithStackFrame(() => ({ type: 'test', payload: setError }))
+    const command = createCommand()
+
+    const context = new Context()
+    context.use({ test: testCommand })
+
+    await context.execute(function* test() {
+      try {
+        yield command
+      } catch (e) {
+        thrownError = e
+      }
+    }())
+
+    if (devMode) {
+      expect(command).to.have.property('stackFrame')
+      expect(thrownError.stack).to.equal([
+        ...backendErrorStack.split('\n'),
+        'From previous event:',
+        ...command.stackFrame.stack.split('\n').slice(1),
+      ].join('\n'))
+    } else {
+      expect(command).to.not.have.property('stackFrame')
+      expect(thrownError.stack).to.equal(backendErrorStack)
+    }
+  }
+
+  async function runTestWithoutError(_commandWithStackFrame, devMode) {
     const createCommand = commandWithStackFrame(() => ({ type: 'test' }))
     const command = createCommand()
 
@@ -35,12 +64,8 @@ describe('commandWithStackFrame', () => {
   }
 
   context('development environment', () => {
-    runWithNodeEnv('development')
-
-    let commandWithStackFrame
-
     before(() => {
-      ({ commandWithStackFrame } = requireNoCache('../src/stack-frame'))
+      commandWithStackFrame = commandCreatorForEnvironment('development')
     })
 
     context('when backend throws error synchronously', () => {
@@ -84,12 +109,14 @@ describe('commandWithStackFrame', () => {
     })
   })
 
-  context('non-development environment', () => {
-    runWithNodeEnv('production')
-    let commandWithStackFrame
-
+  context('production environment', () => {
     before(() => {
-      ({ commandWithStackFrame } = requireNoCache('../src/stack-frame'))
+      commandWithStackFrame = commandCreatorForEnvironment('production')
+    })
+
+    it('should use identity function for commandCreator', () => {
+      const test = {}
+      expect(commandWithStackFrame(test)).to.equal(test)
     })
 
     context('when backend throws error synchronously', () => {

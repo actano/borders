@@ -1,3 +1,4 @@
+import toAsyncIterator from '../async-iterator'
 import { TYPE_ITERATE } from '../commands/iterate'
 import { TYPE_MAP } from '../commands/map'
 import { TYPE_PARALLEL } from '../commands/parallel'
@@ -15,12 +16,6 @@ export default () => ({
   [TYPE_MAP](payload, { execute }) {
     const { collection, iteratee } = payload
 
-    function* mapCollection() {
-      for (const item of collection) {
-        yield execute(iteratee(item))
-      }
-    }
-
-    return iteratorToAsync(mapCollection())
+    return iteratorToAsync(toAsyncIterator(collection, item => execute(iteratee(item))))
   },
 })

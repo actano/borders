@@ -19,57 +19,50 @@ function queue(
 
   const buffer = []
   let srcDone = false
-  let unresolvedPromises = 0
-  let queuedItems = 0
-  let readAheadRunning = false
+  let waiting = 0
 
-  const fetch = () => {
-    unresolvedPromises += 1
-    return Promise.resolve(promiseIterator.next())
-      .then(({ value, done }) => {
-        if (done) {
+  const withWaiting = fn => (...args) => {
+    waiting += 1
+    return fn(...args).finally(() => {
+      waiting -= 1
+    })
+  }
+
+  const next = withWaiting(() => Promise.resolve(promiseIterator.next()))
+
+  const startReadAhead = () => {
+    while (!srcDone && waiting < concurrency && buffer.length < readAhead) {
+      buffer.push(next().finally(startReadAhead))
+    }
+  }
+
+  const iterator = {
+    async next() {
+      startReadAhead()
+      const item = buffer.length ? await buffer.shift() : { done: true }
+      if (item.done) {
+        if (!srcDone) {
           srcDone = true
-          return true
         }
-        unresolvedPromises += 1
-        buffer.push(Promise.resolve(value).finally(() => {
-          unresolvedPromises -= 1
-          queuedItems += 1
-        }))
-        return false
-      }).finally(() => {
-        unresolvedPromises -= 1
-      })
-  }
+        buffer.length = 0
+      }
+      return item
+    },
 
-  const _readAhead = () => {
-    if (readAheadRunning) return
-    if (!srcDone && unresolvedPromises < concurrency && queuedItems < readAhead) {
-      readAheadRunning = true
-      fetch().then(x => {
-        readAheadRunning = false
-        return (x ? null : _readAhead())
-      })
-    }
-  }
+    async return(value) {
+      srcDone = true
+      if (promiseIterator.return) await promiseIterator.return(value)
+      return { done: true, value }
+    },
 
-  const next = async () => {
-    if (!buffer.length && (srcDone || await fetch())) {
+    async throw(exception) {
+      srcDone = true
+      if (promiseIterator.throw) await promiseIterator.throw(exception)
       return { done: true }
-    }
-    const item = buffer.shift()
-    queuedItems -= 1
-    _readAhead()
-    const value = await item
-    return { done: false, value }
+    },
   }
 
-  _readAhead()
-  const iterator = { next }
-  return {
-    [Symbol.asyncIterator]() { return iterator },
-    next,
-  }
+  return { ...iterator, [Symbol.asyncIterator]() { return iterator } }
 }
 
 export default queue

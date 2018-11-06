@@ -1,6 +1,6 @@
 import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import execute, { echoCommand } from './_execute'
+import execute, { echoCommand } from './util/_execute'
 
 const { expect } = chai.use(chaiAsPromised)
 

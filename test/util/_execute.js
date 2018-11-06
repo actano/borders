@@ -1,4 +1,4 @@
-import Context from '../src/context'
+import Context from '../../src/context'
 
 export const echoCommand = payload => ({ type: 'echo', payload })
 

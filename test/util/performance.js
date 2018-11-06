@@ -1,8 +1,8 @@
 import beautifyBenchmark from 'beautify-benchmark'
 import Benchmark from 'benchmark'
-import { map } from '../src/commands'
-import iteratorToAsync from '../src/iterator-to-async'
-import Context from '../src/context'
+import { map } from '../../src/commands/index'
+import iteratorToAsync from '../../src/iterator-to-async'
+import Context from '../../src/context'
 
 // ms to delay a command to simulate I/O, lower values will show the overhead of borders
 const ioTime = 10

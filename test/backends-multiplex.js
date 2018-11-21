@@ -4,7 +4,7 @@ import getCommands from '../src/backends/get-commands'
 
 import { multiplex } from '../src/backends'
 import Context from '../src/context'
-import { echoCommand } from './util/_execute'
+import echoCommand from './util/echo-command'
 
 describe('backends/multiplex', () => {
   const supportedCommands = ['echo']

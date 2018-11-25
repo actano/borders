@@ -1,5 +1,6 @@
 import assert from 'assert'
 import EventEmitter from 'events'
+
 import { getListeningEvents, standard, listenerName } from './backends'
 import getCommands from './backends/get-commands'
 import { withStackFrame } from './stack-frame'
@@ -7,6 +8,8 @@ import './symbol-async-iterator'
 import { isCommand, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 import getBackends from './get-backends'
+import { endExecuteContext, getCurrentExecuteContext, startExecuteContext } from './async-hook'
+import { CODE_TYPE_BACKEND, CODE_TYPE_USERLAND } from './execute-context'
 
 export const EVENT_INVOKE = 'invoke'
 
@@ -22,6 +25,7 @@ export default class Context extends EventEmitter {
       return newKey
     }
     this._commands = {}
+    this._executeContexts = []
     this.use(standard())
   }
 
@@ -46,7 +50,12 @@ export default class Context extends EventEmitter {
     return this
   }
 
+  statistics() {
+    return this._executeContexts.map(executeCtx => executeCtx.json)
+  }
+
   _command(value, ...backends) {
+    const execCtx = getCurrentExecuteContext()
     const { type, payload, stackFrame } = value
     const _backends = backends.length === 0 ? this._commands[type] : backends
 
@@ -64,15 +73,24 @@ export default class Context extends EventEmitter {
 
       assert(fn.length <= 2, `command.type "${type}" must take max two arguments (not ${fn.length})`)
 
-      return () => {
-        const backend = _backends[index]
-        const key = this._keyFor(backend)
+      const backend = _backends[index]
+      const key = this._keyFor(backend)
+
+      const call = (...args) => {
         const context = this[key] || backend
 
-        if (fn.length === 1) {
-          return fn.call(context, payload)
-        }
+        return execCtx.executeNonBorderCode(
+          CODE_TYPE_BACKEND,
+          () => fn.call(context, ...args),
+          type,
+        )
+      }
 
+      if (fn.length === 1) {
+        return () => call(payload)
+      }
+
+      return () => {
         const next = createNext(index + 1)
         const withContext = subcontext => (subcontext
           ? Object.create(this, { [key]: { value: subcontext } })
@@ -89,7 +107,7 @@ export default class Context extends EventEmitter {
         const iterate = (_value, subcontext) => withContext(subcontext).iterate(_value)
 
         const commandContext = next ? { execute, iterate, next } : { execute, iterate }
-        return fn.call(context, payload, commandContext)
+        return call(payload, commandContext)
       }
     }
 
@@ -97,14 +115,37 @@ export default class Context extends EventEmitter {
   }
 
   async execute(value) {
+    const parentExecCtx = getCurrentExecuteContext()
+    let execCtx = parentExecCtx
+
+    if (!execCtx) {
+      // start new root async context for execution context
+      await Promise.resolve()
+
+      execCtx = startExecuteContext()
+      this._executeContexts.push(execCtx)
+    }
+
     const v = await this.iterate(value).next()
+
+    // end here created execute context
+    if (!parentExecCtx) {
+      // start new root async context for following non-execution context
+      await Promise.resolve()
+
+      endExecuteContext(execCtx)
+    }
+
     if (!v.done) {
       throw new Error(`yielding literal values inside execute is not allowed: ${v.value}`)
     }
+
     return v.value
   }
 
   async* iterate(value) {
+    const execCtx = getCurrentExecuteContext()
+
     if (isCommand(value)) {
       return this._command(value)
     }
@@ -122,10 +163,10 @@ export default class Context extends EventEmitter {
       } catch (e) {
         return value.throw(e)
       }
-      return value.next(nextValue)
+      return execCtx.executeNonBorderCode(CODE_TYPE_USERLAND, () => value.next(nextValue))
     }
 
-    let v = await value.next()
+    let v = await execCtx.executeNonBorderCode(CODE_TYPE_USERLAND, () => value.next())
     while (!v.done) {
       v = yield* step(v.value)
     }

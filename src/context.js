@@ -4,14 +4,21 @@ import { getListeningEvents, standard, listenerName } from './backends'
 import getCommands from './backends/get-commands'
 import { withStackFrame } from './stack-frame'
 import './symbol-async-iterator'
+import StatisticEntry from './statistic-entry'
 import { isCommand, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 import getBackends from './get-backends'
 
 export const EVENT_INVOKE = 'invoke'
 
+const noopStats = {
+  addCall(fn) {
+    return fn()
+  },
+}
+
 export default class Context extends EventEmitter {
-  constructor() {
+  constructor({ statistics = false } = {}) {
     super()
     const keys = new Map()
     this._keyFor = (backend) => {
@@ -22,6 +29,9 @@ export default class Context extends EventEmitter {
       return newKey
     }
     this._commands = {}
+    if (statistics) {
+      this._statistics = new Map()
+    }
     this.use(standard())
   }
 
@@ -30,6 +40,9 @@ export default class Context extends EventEmitter {
     const commands = getCommands(backends[0])
     assert(commands.filter(op => this._commands[op]).length === 0, `Commands already bound: ${commands.filter(op => this._commands[op]).join(', ')}`)
     for (const op of commands) {
+      if (this._statistics) {
+        this._statistics.set(op, new StatisticEntry())
+      }
       this._commands[op] = backends
     }
     backends.forEach((backend) => {
@@ -44,6 +57,20 @@ export default class Context extends EventEmitter {
       })
     })
     return this
+  }
+
+  statistics() {
+    return this._statistics
+  }
+
+  _statisticEntry(id) {
+    if (!this._statistics) return noopStats
+    if (this._statistics.has(id)) {
+      return this._statistics.get(id)
+    }
+    const entry = new StatisticEntry()
+    this._statistics.set(id, entry)
+    return entry
   }
 
   _command(value, ...backends) {
@@ -64,15 +91,20 @@ export default class Context extends EventEmitter {
 
       assert(fn.length <= 2, `command.type "${type}" must take max two arguments (not ${fn.length})`)
 
-      return () => {
-        const backend = _backends[index]
-        const key = this._keyFor(backend)
+      const backend = _backends[index]
+      const key = this._keyFor(backend)
+
+      const call = (...args) => {
+        const entry = this._statisticEntry(`${type}.${index}`)
         const context = this[key] || backend
+        return entry.addCall(() => fn.call(context, ...args))
+      }
 
-        if (fn.length === 1) {
-          return fn.call(context, payload)
-        }
+      if (fn.length === 1) {
+        return () => call(payload)
+      }
 
+      return () => {
         const next = createNext(index + 1)
         const withContext = subcontext => (subcontext
           ? Object.create(this, { [key]: { value: subcontext } })
@@ -89,11 +121,12 @@ export default class Context extends EventEmitter {
         const iterate = (_value, subcontext) => withContext(subcontext).iterate(_value)
 
         const commandContext = next ? { execute, iterate, next } : { execute, iterate }
-        return fn.call(context, payload, commandContext)
+        return call(payload, commandContext)
       }
     }
 
-    return withStackFrame(stackFrame, createNext(0))
+    const entry = this._statisticEntry(type)
+    return withStackFrame(stackFrame, () => entry.addCall(createNext(0)))
   }
 
   async execute(value) {

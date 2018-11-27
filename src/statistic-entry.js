@@ -7,17 +7,12 @@ export default class StatisticEntry {
     this.sum = 0.0
     this.min = Number.NaN
     this.max = Number.NaN
-    this._squareSum = 0.0
-  }
-
-  get avg() {
-    return this.sum / this.count
+    this.avg = 0.0
+    this.varianceTimesCount = 0.0
   }
 
   get variance() {
-    const a = this._squareSum / this.count
-    const b = (this.sum ** 2) / (this.count ** 2)
-    return a - b
+    return this.varianceTimesCount / this.count
   }
 
   addSample(diff) {
@@ -25,7 +20,10 @@ export default class StatisticEntry {
     this.sum += diff
     this.min = Number.isNaN(this.min) ? diff : Math.min(this.min, diff)
     this.max = Number.isNaN(this.max) ? diff : Math.max(this.max, diff)
-    this._squareSum += diff ** 2
+    const oldAvg = this.avg
+    const diffMinusOldAvg = diff - oldAvg
+    this.avg += (diffMinusOldAvg) / this.count
+    this.varianceTimesCount += diffMinusOldAvg * (diff - this.avg)
   }
 
   addCall(fn) {

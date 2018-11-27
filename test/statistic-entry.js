@@ -53,6 +53,8 @@ describe('statistic-entry', () => {
     // const { avg } = entry
     // const _expect = (((LO - avg) ** 2) + ((HI - avg) ** 2)) / 2
     const _expect = 5 ** 2
-    expect(entry.variance).to.deep.equal(_expect)
+    expect(entry.variance).to.equal(_expect)
+    const entryWithExtremeSamples = entryWithSamples(1000000000.5, 999999999.5)
+    expect(entryWithExtremeSamples.variance).to.equal(0.25)
   })
 })

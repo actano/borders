@@ -113,6 +113,14 @@ describe('sequential commands', () => {
   })
 })
 
+describe('pure noops', () => {
+  it('running sequential noop commands via context.execute()', async () => {
+    for (let i = 0; i < noopCommandsPerOp; i += 1) {
+      await context.execute(noop()) // eslint-disable-line no-await-in-loop
+    }
+  })
+})
+
 describe('parallel commands', () => {
   it('using iteratorToAsync to directly perform io in parallel', async () => {
     const generator = (function* () {

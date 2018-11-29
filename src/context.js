@@ -8,17 +8,12 @@ import StatisticEntry from './statistic-entry'
 import { isCommand, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 import getBackends from './get-backends'
+import sampler, { NOOP } from './sampler'
 
 export const EVENT_INVOKE = 'invoke'
 
-const noopStats = {
-  addCall(fn) {
-    return fn()
-  },
-}
-
 export default class Context extends EventEmitter {
-  constructor({ statistics = false } = {}) {
+  constructor({ statistics = NOOP } = {}) {
     super()
     const keys = new Map()
     this._keyFor = (backend) => {
@@ -29,7 +24,8 @@ export default class Context extends EventEmitter {
       return newKey
     }
     this._commands = {}
-    if (statistics) {
+    this._sampler = sampler(statistics)
+    if (statistics !== NOOP) {
       this._statistics = new Map()
     }
     this.use(standard())
@@ -64,13 +60,14 @@ export default class Context extends EventEmitter {
   }
 
   _statisticEntry(id) {
-    if (!this._statistics) return noopStats
+    if (!this._statistics) return this._sampler
     if (this._statistics.has(id)) {
-      return this._statistics.get(id)
+      const entry = this._statistics.get(id)
+      return fn => this._sampler(fn, entry)
     }
     const entry = new StatisticEntry()
     this._statistics.set(id, entry)
-    return entry
+    return fn => this._sampler(fn, entry)
   }
 
   _command(value, ...backends) {
@@ -97,7 +94,7 @@ export default class Context extends EventEmitter {
       const call = (...args) => {
         const entry = this._statisticEntry(`${type}.${index}`)
         const context = this[key] || backend
-        return entry.addCall(() => fn.call(context, ...args))
+        return entry(() => fn.call(context, ...args))
       }
 
       if (fn.length === 1) {
@@ -126,7 +123,7 @@ export default class Context extends EventEmitter {
     }
 
     const entry = this._statisticEntry(type)
-    return withStackFrame(stackFrame, () => entry.addCall(createNext(0)))
+    return withStackFrame(stackFrame, () => entry(createNext(0)))
   }
 
   async execute(value) {

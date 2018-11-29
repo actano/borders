@@ -1,6 +1,3 @@
-import { performance } from 'perf_hooks'
-import { isPromise, promiseFinally } from './utils'
-
 export default class StatisticEntry {
   constructor() {
     this.count = 0
@@ -24,16 +21,5 @@ export default class StatisticEntry {
     const diffMinusOldAvg = diff - oldAvg
     this.avg += (diffMinusOldAvg) / this.count
     this.varianceTimesCount += diffMinusOldAvg * (diff - this.avg)
-  }
-
-  addCall(fn) {
-    const start = performance.now()
-    const done = () => this.addSample(performance.now() - start)
-    const result = fn()
-    if (isPromise(result)) {
-      return promiseFinally(result, done)
-    }
-    done()
-    return result
   }
 }

@@ -1,8 +1,10 @@
 import beautifyBenchmark from 'beautify-benchmark'
 import Benchmark from 'benchmark'
+import { disable } from '../../src/async-tracking'
 import { map } from '../../src/commands/index'
 import iteratorToAsync from '../../src/iterator-to-async'
 import Context from '../../src/context'
+import { ASYNC, DIFF, NOOP } from '../../src/sampler'
 
 // ms to delay a command to simulate I/O, lower values will show the overhead of borders
 const ioTime = 10
@@ -114,11 +116,15 @@ describe('sequential commands', () => {
 })
 
 describe('pure noops', () => {
-  it('running sequential noop commands via context.execute()', async () => {
-    for (let i = 0; i < noopCommandsPerOp; i += 1) {
-      await context.execute(noop()) // eslint-disable-line no-await-in-loop
-    }
-  })
+  for (const statistics of [NOOP, DIFF, ASYNC]) {
+    it(`running sequential noop commands with statistics '${statistics}' via context.execute()`, async () => {
+      const context = new Context({ statistics }).use(backend)
+      for (let i = 0; i < noopCommandsPerOp; i += 1) {
+        await context.execute(noop()) // eslint-disable-line no-await-in-loop
+      }
+      disable()
+    })
+  }
 })
 
 describe('parallel commands', () => {

@@ -1,6 +1,8 @@
 import { expect } from 'chai'
+import { disable } from '../src/async-tracking'
 
 import Context from '../src/context'
+import { ASYNC, DIFF } from '../src/sampler'
 import StatisticEntry from '../src/statistic-entry'
 import EchoBackend from './util/echo-backend'
 
@@ -20,7 +22,7 @@ const delayCommand = ms => ({
   payload: { ms },
 })
 
-describe('statistics', () => {
+for (const statistics of [DIFF, ASYNC]) {
   const LO = 10
   const HI = 20
 
@@ -41,36 +43,42 @@ describe('statistics', () => {
     expect(max, 'max is to low').to.be.at.least(hi)
   }
 
-  it('should respond to `statistics` returning a map', () => {
-    const context = new Context({ statistics: true })
-    expect(context).to.respondTo('statistics')
-    expect(context.statistics()).to.be.an.instanceof(Map)
-  })
+  describe(`statistics with sampler engine '${statistics}'`, () => {
+    after(() => {
+      disable()
+    })
 
-  it('should have entries for each command', () => {
-    const context = new Context({ statistics: true })
-    context.use(new EchoBackend())
-    const statistics = context.statistics()
-    expect(statistics.get('echo')).to.be.an.instanceof(StatisticEntry)
-  })
+    it('should respond to `statistics` returning a map', () => {
+      const context = new Context({ statistics })
+      expect(context).to.respondTo('statistics')
+      expect(context.statistics()).to.be.an.instanceof(Map)
+    })
 
-  it('should calculate statistics', async () => {
-    const context = new Context({ statistics: true })
-    context.use(new EchoBackend()).use(new DelayBackend())
-    await context.execute(delayCommand(LO))
-    await context.execute(delayCommand(HI))
-    expectations(context, 'delay')
-  })
+    it('should have entries for each command', () => {
+      const context = new Context({ statistics })
+      context.use(new EchoBackend())
+      const result = context.statistics()
+      expect(result.get('echo')).to.be.an.instanceof(StatisticEntry)
+    })
 
-  it('should have entries for `command.<n>` for each backend', async () => {
-    const context = new Context({ statistics: true })
-    context.use(new DelayBackend(), new DelayBackend())
-    await context.execute(delayCommand(LO))
-    await context.execute(delayCommand(HI))
-    expectations(context, 'delay.1')
-    expectations(context, 'delay.0', 2)
-    expectations(context, 'delay', 2)
-  })
+    it('should calculate statistics', async () => {
+      const context = new Context({ statistics })
+      context.use(new EchoBackend()).use(new DelayBackend())
+      await context.execute(delayCommand(LO))
+      await context.execute(delayCommand(HI))
+      expectations(context, 'delay')
+    })
 
-  it('should have entries for `command.<n>:<selector>` for multiplexed backend')
-})
+    it('should have entries for `command.<n>` for each backend', async () => {
+      const context = new Context({ statistics })
+      context.use(new DelayBackend(), new DelayBackend())
+      await context.execute(delayCommand(LO))
+      await context.execute(delayCommand(HI))
+      expectations(context, 'delay.1')
+      expectations(context, 'delay.0', 2)
+      expectations(context, 'delay', 2)
+    })
+
+    it('should have entries for `command.<n>:<selector>` for multiplexed backend')
+  })
+}

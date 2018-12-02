@@ -3,25 +3,30 @@ import { performance } from 'perf_hooks'
 
 import CodeTypeStatisticsEntry from './code-type-statistics-entry'
 
-let nextExecCtxId = 0
+let nextExecCtxId = 1
 
 const CODE_TYPE_BORDERS = 'borders'
 const CODE_TYPE_USERLAND = 'userland'
 const CODE_TYPE_BACKEND = 'backend'
 
 class ExecuteContext {
-  constructor() {
+  constructor(timeBlackStart, timeUntrackedStart) {
+    this.countSubExecute = 0
+    this.timeBlackStart = timeBlackStart
+    this.timeUntrackedStart = timeUntrackedStart
     this.timeStart = performance.now()
     this.startAsyncId = executionAsyncId()
     this.id = nextExecCtxId
     nextExecCtxId += 1
-    this.asyncContextByAsyncId = {
-      [this.startAsyncId]: {
+    this.asyncContextByAsyncId = new Map()
+    this.asyncContextByAsyncId.set(
+      this.startAsyncId,
+      {
         codeType: CODE_TYPE_BORDERS,
         resourceType: 'PROMISE',
         timeStart: this.timeStart,
       },
-    }
+    )
     this.codeTypeStats = {
       [CODE_TYPE_BORDERS]: new CodeTypeStatisticsEntry(),
       [CODE_TYPE_USERLAND]: new CodeTypeStatisticsEntry(),
@@ -61,26 +66,22 @@ class ExecuteContext {
   }
 
   get asyncContext() {
-    return this.asyncContextByAsyncId[executionAsyncId()]
+    return this.asyncContextByAsyncId.get(executionAsyncId())
   }
 
-  get duration() {
-    return this.timeEnd !== undefined
-      ? this.timeEnd - this.timeStart
-      : -1
-  }
-
-  end() {
+  end(timeBlackEnd, timeUntrackedEnd) {
     this.timeEnd = performance.now()
+    this.timeBlack = timeBlackEnd - this.timeBlackStart
+    this.timeUntracked = timeUntrackedEnd - this.timeUntrackedStart
   }
 
   get json() {
     const json = {
       executeContextId: this.id,
-      duration: this.duration,
+      duration: this.timeEnd - this.timeStart,
     }
     const jsonCodeType = {}
-    let durationUnused = json.duration
+    let durationRemaining = json.duration
 
     for (const codeType of Object.keys(this.codeTypeStats)) {
       const codeJson = this.codeTypeStats[codeType].json
@@ -88,16 +89,19 @@ class ExecuteContext {
 
       if (json.duration > 0) {
         json[`time-percent-${codeType}`] = 100 * codeJson.time / json.duration
-        durationUnused -= codeJson.time
+        durationRemaining -= codeJson.time
       }
     }
 
     if (json.duration > 0) {
-      json['time-percent-unused'] = 100 * durationUnused / json.duration
+      json['time-percent-untracked'] = 100 * this.timeUntracked / json.duration
+      json['time-percent-other'] = 100 * (durationRemaining - this.timeUntracked - this.timeBlack) / json.duration
+      json['time-percent-black'] = 100 * this.timeBlack / json.duration
     }
 
     return {
       ...json,
+      countSubExecute: this.countSubExecute,
       ...jsonCodeType,
     }
   }

@@ -9,7 +9,7 @@ import { isCommand, isString } from './utils'
 import yieldToEventLoop from './yield-to-event-loop'
 import getBackends from './get-backends'
 import { endExecuteContext, getCurrentExecuteContext, startExecuteContext } from './async-hook'
-import { CODE_TYPE_BACKEND, CODE_TYPE_USERLAND } from './execute-context'
+import { CODE_TYPE_BACKEND, CODE_TYPE_BORDERS, CODE_TYPE_USERLAND } from './execute-context'
 
 export const EVENT_INVOKE = 'invoke'
 
@@ -82,7 +82,7 @@ export default class Context extends EventEmitter {
         return execCtx.executeNonBorderCode(
           CODE_TYPE_BACKEND,
           () => fn.call(context, ...args),
-          type,
+          `${type}.${index + 1}`,
         )
       }
 
@@ -117,6 +117,8 @@ export default class Context extends EventEmitter {
   async execute(value) {
     const parentExecCtx = getCurrentExecuteContext()
     let execCtx = parentExecCtx
+    let codeType = CODE_TYPE_BORDERS
+    let groupId = ''
 
     if (!execCtx) {
       // start new root async context for execution context
@@ -124,6 +126,17 @@ export default class Context extends EventEmitter {
 
       execCtx = startExecuteContext()
       this._executeContexts.push(execCtx)
+    } else {
+      execCtx.countSubExecute += 1
+      let asyncCtx = execCtx.asyncContext;
+      ({ codeType, groupId } = asyncCtx)
+
+      if (codeType !== CODE_TYPE_BORDERS) {
+        await Promise.resolve()
+        asyncCtx = execCtx.asyncContext
+        asyncCtx.codeType = CODE_TYPE_BORDERS
+        asyncCtx.groupId = ''
+      }
     }
 
     const v = await this.iterate(value).next()
@@ -134,6 +147,11 @@ export default class Context extends EventEmitter {
       await Promise.resolve()
 
       endExecuteContext(execCtx)
+    } else if (codeType !== CODE_TYPE_BORDERS) {
+      await Promise.resolve()
+      const asyncCtx = execCtx.asyncContext
+      asyncCtx.codeType = codeType
+      asyncCtx.groupId = groupId
     }
 
     if (!v.done) {
@@ -167,9 +185,11 @@ export default class Context extends EventEmitter {
     }
 
     let v = await execCtx.executeNonBorderCode(CODE_TYPE_USERLAND, () => value.next())
+
     while (!v.done) {
       v = yield* step(v.value)
     }
+
     return v.value
   }
 }

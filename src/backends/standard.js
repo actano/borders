@@ -4,13 +4,19 @@ import { TYPE_MAP } from '../commands/map'
 import { TYPE_PARALLEL } from '../commands/parallel'
 import iteratorToAsync from '../iterator-to-async'
 
+function* _execute(iterable, execute) {
+  for (const element of iterable) {
+    yield execute(element)
+  }
+}
+
 export default () => ({
   [TYPE_ITERATE](payload, { iterate }) {
     return iteratorToAsync(iterate(payload))
   },
 
   [TYPE_PARALLEL](payload, { execute }) {
-    return Promise.all(payload.map(execute))
+    return Promise.all(_execute(payload, execute))
   },
 
   [TYPE_MAP](payload, { execute }) {

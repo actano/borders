@@ -8,7 +8,7 @@ let blackTime = 0.0
 
 const contexts = new Map()
 
-const init = (asyncId, type, triggerAsyncId, resource) => {
+const init = (asyncId, type) => {
   const parentId = executionAsyncId()
   const parent = contexts.get(parentId)
   if (parent) {

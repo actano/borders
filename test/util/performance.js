@@ -1,3 +1,5 @@
+import assert from 'assert'
+import { triggerAsyncId } from 'async_hooks'
 import beautifyBenchmark from 'beautify-benchmark'
 import Benchmark from 'benchmark'
 import { disable } from '../../src/async-tracking'
@@ -79,7 +81,9 @@ const it = (desc, fn) => {
   suite.add(desc, {
     defer: true,
     fn(deferred) {
-      fn().then(() => deferred.resolve())
+      Promise.resolve().then(() => {
+        assert(triggerAsyncId() === 0)
+      }).then(fn).then(() => deferred.resolve())
     },
   })
 }
@@ -118,9 +122,9 @@ describe('sequential commands', () => {
 describe('pure noops', () => {
   for (const statistics of [NOOP, DIFF, ASYNC]) {
     it(`running sequential noop commands with statistics '${statistics}' via context.execute()`, async () => {
-      const context = new Context({ statistics }).use(backend)
+      const _context = new Context({ statistics }).use(backend)
       for (let i = 0; i < noopCommandsPerOp; i += 1) {
-        await context.execute(noop()) // eslint-disable-line no-await-in-loop
+        await _context.execute(noop()) // eslint-disable-line no-await-in-loop
       }
       disable()
     })

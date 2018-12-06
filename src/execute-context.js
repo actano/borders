@@ -82,21 +82,39 @@ class ExecuteContext {
     }
     const jsonCodeType = {}
     let durationRemaining = json.duration
+    let timeSumTask = 0
 
     for (const codeType of Object.keys(this.codeTypeStats)) {
       const codeJson = this.codeTypeStats[codeType].json
       jsonCodeType[`codeType:${codeType}`] = codeJson
 
+      timeSumTask += codeJson.time
+      json[`time-${codeType}`] = codeJson.time
       if (json.duration > 0) {
-        json[`time-percent-${codeType}`] = 100 * codeJson.time / json.duration
+        json[`time-${codeType}-percent`] = 100 * codeJson.time / json.duration
         durationRemaining -= codeJson.time
       }
     }
 
+    json['time-untracked'] = this.timeUntracked
     if (json.duration > 0) {
-      json['time-percent-untracked'] = 100 * this.timeUntracked / json.duration
-      json['time-percent-other'] = 100 * (durationRemaining - this.timeUntracked - this.timeBlack) / json.duration
-      json['time-percent-black'] = 100 * this.timeBlack / json.duration
+      json['time-untracked-percent'] = 100 * this.timeUntracked / json.duration
+    }
+    json['time-other'] = durationRemaining - this.timeUntracked - this.timeBlack
+    if (json.duration > 0) {
+      json['time-other-percent'] = 100 * (durationRemaining - this.timeUntracked - this.timeBlack) / json.duration
+    }
+    json['time-black'] = this.timeBlack
+    if (json.duration > 0) {
+      json['time-black-percent'] = 100 * this.timeBlack / json.duration
+    }
+    json['time-sum-task(userland+borders+backend)'] = timeSumTask
+    if (json.duration > 0) {
+      json['time-sum-task-percent'] = 100 * timeSumTask / json.duration
+    }
+    json['time-sum-none-task'] = json.duration - timeSumTask
+    if (json.duration > 0) {
+      json['time-sum-none-task-percent'] = 100 * (json.duration - timeSumTask) / json.duration
     }
 
     return {

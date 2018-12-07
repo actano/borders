@@ -41,7 +41,7 @@ function queue(
         return result
       }, (reason) => {
         startReadAhead()
-        throw reason
+        return { reason, done: false }
       }))
     }
   }
@@ -55,6 +55,18 @@ function queue(
           srcDone = true
         }
         buffer.length = 0
+      }
+      if (item.reason) {
+        const stack = new Error()
+        const error = new Error('Exception from source iterator')
+        Object.defineProperty(error, 'stack', {
+          configurable: true,
+          enumerable: false,
+          get() {
+            return `${stack.stack}\n\n${item.reason.stack}`
+          },
+        })
+        throw error
       }
       return item
     },
@@ -70,9 +82,13 @@ function queue(
       if (promiseIterator.throw) await promiseIterator.throw(exception)
       return { done: true }
     },
+
+    [Symbol.asyncIterator]() {
+      return iterator
+    },
   }
 
-  return { ...iterator, [Symbol.asyncIterator]() { return iterator } }
+  return iterator
 }
 
 export default queue

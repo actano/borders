@@ -7,10 +7,6 @@ export const ASYNC = 'async'
 export const DIFF = 'diff'
 
 const sampler = {
-  [NOOP](fn) {
-    return fn()
-  },
-
   [ASYNC](fn, entry) {
     const executionContext = new ExecutionContext()
     const result = executionContext.run(fn)

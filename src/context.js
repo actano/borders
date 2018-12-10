@@ -1,14 +1,14 @@
 import assert from 'assert'
 import EventEmitter from 'events'
-import { getListeningEvents, standard, listenerName } from './backends'
+import { getListeningEvents, listenerName, standard } from './backends'
 import getCommands from './backends/get-commands'
-import { withStackFrame } from './stack-frame'
-import './symbol-async-iterator'
-import StatisticEntry from './statistic-entry'
-import { isCommand, isString } from './utils'
-import yieldToEventLoop from './yield-to-event-loop'
 import getBackends from './get-backends'
 import sampler, { NOOP } from './sampler'
+import { withStackFrame } from './stack-frame'
+import StatisticEntry from './statistic-entry'
+import './symbol-async-iterator'
+import { isCommand, isString } from './utils'
+import yieldToEventLoop from './yield-to-event-loop'
 
 export const EVENT_INVOKE = 'invoke'
 
@@ -24,8 +24,8 @@ export default class Context extends EventEmitter {
       return newKey
     }
     this._commands = {}
-    this._sampler = sampler(statistics)
     if (statistics !== NOOP) {
+      this._sampler = sampler(statistics)
       this._statistics = new Map()
     }
     this.use(standard())
@@ -59,15 +59,18 @@ export default class Context extends EventEmitter {
     return this._statistics
   }
 
-  _statisticEntry(id) {
-    if (!this._statistics) return this._sampler
-    if (this._statistics.has(id)) {
-      const entry = this._statistics.get(id)
-      return fn => this._sampler(fn, entry)
+  _withStats(id, fn) {
+    const { _sampler, _statistics } = this
+    if (!_statistics) return fn
+    return function withStatistics(...args) {
+      let entry = _statistics.get(id)
+      if (!entry) {
+        entry = new StatisticEntry()
+        _statistics.set(id, entry)
+      }
+      const self = this
+      return _sampler(() => fn.call(self, ...args), entry)
     }
-    const entry = new StatisticEntry()
-    this._statistics.set(id, entry)
-    return fn => this._sampler(fn, entry)
   }
 
   _command(value, ...backends) {
@@ -90,40 +93,45 @@ export default class Context extends EventEmitter {
 
       const backend = _backends[index]
       const key = this._keyFor(backend)
-
-      const call = (...args) => {
-        const entry = this._statisticEntry(`${type}.${index}`)
-        const context = this[key] || backend
-        return entry(() => fn.call(context, ...args))
-      }
+      const context = this[key] || backend
+      const statsKey = `${type}.${index}`
+      const withStats = this._withStats(statsKey, fn)
 
       if (fn.length === 1) {
-        return () => call(payload)
+        return () => withStats.call(context, payload)
       }
+
+      const withContext = subcontext => (subcontext
+        ? Object.create(this, { [key]: { value: subcontext } })
+        : this)
 
       return () => {
         const next = createNext(index + 1)
-        const withContext = subcontext => (subcontext
-          ? Object.create(this, { [key]: { value: subcontext } })
-          : this)
 
-        const execute = (_value, subcontext) => {
-          const _subbackends = getBackends(_value)
-          if (_subbackends.length) {
-            return withContext(subcontext)._command(_value, ..._subbackends)
-          }
-          return withContext(subcontext).execute(_value)
-        }
+        const execute = this._withStats(
+          `${statsKey}.execute`,
+          (_value, subcontext) => {
+            const _subbackends = getBackends(_value)
+            if (_subbackends.length) {
+              return withContext(subcontext)._command(_value, ..._subbackends)
+            }
+            return withContext(subcontext).execute(_value)
+          },
+        )
 
-        const iterate = (_value, subcontext) => withContext(subcontext).iterate(_value)
+        const iterate = this._withStats(
+          `${statsKey}.execute`,
+          (_value, subcontext) => withContext(subcontext).iterate(_value),
+        )
 
         const commandContext = next ? { execute, iterate, next } : { execute, iterate }
-        return call(payload, commandContext)
+
+        return withStats.call(context, payload, commandContext)
       }
     }
 
-    const entry = this._statisticEntry(type)
-    return withStackFrame(stackFrame, () => entry(createNext(0)))
+    const withStats = this._withStats(type, createNext(0))
+    return withStackFrame(stackFrame, withStats)
   }
 
   async execute(value) {
